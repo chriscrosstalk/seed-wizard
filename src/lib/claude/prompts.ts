@@ -13,12 +13,19 @@ IMPORTANT GUIDELINES:
    - "direct_sow" = seeds planted directly in garden (look for "Direct sow recommended", "Sow outdoors", etc.)
    - If both methods are mentioned but one says "recommended", use that one
    - If unclear, use "start_indoors" for heat-loving crops (tomatoes, peppers) and "direct_sow" for root crops and cold-hardy greens
-6. weeks_before_last_frost = weeks before last frost to START seeds indoors
-7. weeks_after_last_frost = weeks AFTER last frost to direct sow outdoors
-8. cold_hardy = true if can be planted outdoors before last frost date
-9. Look for succession planting recommendations
-10. Check for fall planting options or cold stratification requirements
-11. Extract the main product image URL from the [Product Images] section at the end of the content (prefer the first URL listed, which is usually og:image)`
+
+TIMING FIELDS - Use the correct field based on planting method and cold hardiness:
+6. weeks_before_last_frost = ONLY for planting_method="start_indoors": weeks before last frost to start seeds indoors
+7. weeks_after_last_frost = ONLY for planting_method="direct_sow" with cold_hardy=false: weeks AFTER last frost to direct sow
+8. weeks_before_last_frost_outdoor = ONLY for planting_method="direct_sow" with cold_hardy=true: weeks BEFORE last frost for outdoor direct sowing
+   - Look for phrases like "sow 2-4 weeks before last frost", "as soon as soil can be worked", "early spring"
+   - If it says "as soon as soil can be worked" or similar, use 4-6 weeks before last frost
+
+9. cold_hardy = true if plant can tolerate frost or be planted before last frost date
+   - Indicators: "cold tolerant", "frost hardy", "cool season", "prefers cool temperatures", "early spring sowing"
+10. Look for succession planting recommendations
+11. Check for fall planting options or cold stratification requirements
+12. Extract the main product image URL from the [Product Images] section at the end of the content (prefer the first URL listed, which is usually og:image)`
 
 export const SEED_EXTRACTION_TOOL: Tool = {
   name: 'extract_seed_info',
@@ -75,19 +82,19 @@ export const SEED_EXTRACTION_TOOL: Tool = {
       },
       weeks_before_last_frost: {
         type: 'integer',
-        description: 'Weeks before last frost to start seeds indoors'
+        description: 'ONLY for start_indoors: Weeks before last frost to start seeds indoors'
       },
       weeks_after_last_frost: {
         type: 'integer',
-        description: 'Weeks after last frost for direct sowing'
+        description: 'ONLY for direct_sow + NOT cold hardy: Weeks after last frost for direct sowing'
       },
       cold_hardy: {
         type: 'boolean',
-        description: 'Whether the plant can tolerate frost'
+        description: 'True if plant tolerates frost, prefers cool temps, or can be planted before last frost'
       },
       weeks_before_last_frost_outdoor: {
         type: 'integer',
-        description: 'For cold hardy plants: weeks before last frost for outdoor direct sowing'
+        description: 'ONLY for direct_sow + cold hardy: Weeks BEFORE last frost for outdoor sowing (e.g., "sow 4 weeks before last frost" = 4)'
       },
       succession_planting: {
         type: 'boolean',

@@ -80,9 +80,6 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
 
       setExtractedData(data)
 
-      // Debug: log extracted data to see what we're getting
-      console.log('Extracted data:', JSON.stringify(data, null, 2))
-
       // Update state for dynamic fields
       if (data.planting_method) setPlantingMethod(data.planting_method)
       if (data.succession_planting !== undefined) setSuccessionPlanting(!!data.succession_planting)
@@ -93,38 +90,28 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
       if (data.cold_hardy === true || data.cold_hardy === 'true') {
         isColdHardy = true
         setColdHardy(true)
-        console.log('Setting coldHardy = true (explicit)')
       } else if (data.cold_hardy === false || data.cold_hardy === 'false') {
         isColdHardy = false
         setColdHardy(false)
-        console.log('Setting coldHardy = false (explicit)')
       } else if (data.planting_method === 'direct_sow') {
         // Infer cold_hardy from which weeks field has data
         if (typeof data.weeks_before_last_frost_outdoor === 'number') {
           isColdHardy = true
           setColdHardy(true)
-          console.log('Setting coldHardy = true (inferred from weeks_before_last_frost_outdoor)')
         } else if (typeof data.weeks_before_last_frost === 'number' && typeof data.weeks_after_last_frost !== 'number') {
           // If we have weeks_before_last_frost but NOT weeks_after_last_frost for direct sow,
           // this is likely a cold-hardy plant where extraction used wrong field name
           isColdHardy = true
           setColdHardy(true)
-          console.log('Setting coldHardy = true (inferred from weeks_before_last_frost for direct_sow)')
         } else if (typeof data.weeks_after_last_frost === 'number') {
           isColdHardy = false
           setColdHardy(false)
-          console.log('Setting coldHardy = false (inferred from weeks_after_last_frost)')
         }
       }
 
-      console.log('After cold_hardy logic: isColdHardy =', isColdHardy, ', planting_method =', data.planting_method)
-
       // Update weeks fields state (these are conditionally rendered so need state)
-      // Check for actual numeric values (handles undefined, null, and 0)
       if (data.planting_method === 'start_indoors') {
-        // Indoor starting: use weeks_before_last_frost
         if (typeof data.weeks_before_last_frost === 'number') {
-          console.log('Setting weeksBeforeLastFrost =', data.weeks_before_last_frost, '(start_indoors)')
           setWeeksBeforeLastFrost(data.weeks_before_last_frost.toString())
         }
       } else if (data.planting_method === 'direct_sow') {
@@ -132,17 +119,12 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
           // Cold hardy direct sow: use weeks_before_last_frost_outdoor,
           // but fall back to weeks_before_last_frost if that's what extraction returned
           if (typeof data.weeks_before_last_frost_outdoor === 'number') {
-            console.log('Setting weeksBeforeLastFrostOutdoor =', data.weeks_before_last_frost_outdoor, '(from weeks_before_last_frost_outdoor)')
             setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost_outdoor.toString())
           } else if (typeof data.weeks_before_last_frost === 'number') {
-            // Extraction returned wrong field name, use it anyway
-            console.log('Setting weeksBeforeLastFrostOutdoor =', data.weeks_before_last_frost, '(fallback from weeks_before_last_frost)')
             setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost.toString())
           }
         } else {
-          // Non cold hardy direct sow: use weeks_after_last_frost
           if (typeof data.weeks_after_last_frost === 'number') {
-            console.log('Setting weeksAfterLastFrost =', data.weeks_after_last_frost, '(non-cold-hardy direct_sow)')
             setWeeksAfterLastFrost(data.weeks_after_last_frost.toString())
           }
         }
