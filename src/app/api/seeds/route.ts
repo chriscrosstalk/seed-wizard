@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Seed, SeedInsert } from '@/types/database'
+import { getDefaultTiming } from '@/lib/plant-defaults'
 
 // Validation schema for creating/updating seeds
 const seedSchema = z.object({
@@ -75,6 +76,23 @@ export async function POST(request: NextRequest) {
     image_url: result.data.image_url || null,
     // TODO: Replace with actual user ID from auth
     user_id: '00000000-0000-0000-0000-000000000000',
+  }
+
+  // Fill in missing timing info from plant defaults if available
+  const hasTiming = seedData.weeks_before_last_frost != null ||
+    seedData.weeks_after_last_frost != null ||
+    seedData.weeks_before_last_frost_outdoor != null
+
+  if (!hasTiming && seedData.common_name) {
+    const defaults = getDefaultTiming(seedData.common_name)
+    if (defaults) {
+      // Only fill in if not already set
+      seedData.planting_method = seedData.planting_method ?? defaults.planting_method ?? null
+      seedData.cold_hardy = seedData.cold_hardy ?? defaults.cold_hardy ?? false
+      seedData.weeks_before_last_frost = seedData.weeks_before_last_frost ?? defaults.weeks_before_last_frost ?? null
+      seedData.weeks_after_last_frost = seedData.weeks_after_last_frost ?? defaults.weeks_after_last_frost ?? null
+      seedData.weeks_before_last_frost_outdoor = seedData.weeks_before_last_frost_outdoor ?? defaults.weeks_before_last_frost_outdoor ?? null
+    }
   }
 
   const { data, error } = await supabase

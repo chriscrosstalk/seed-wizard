@@ -21,7 +21,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <h2 className="font-semibold text-gray-900 group-hover:text-green-600">
-                Seed Inventory
+                My Seeds
               </h2>
               <p className="text-sm text-gray-500">View and manage your seeds</p>
             </div>

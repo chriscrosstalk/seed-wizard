@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Sprout, Package, Calendar, Settings } from 'lucide-react'
 
 const navItems = [
-  { href: '/dashboard/inventory', label: 'Inventory', icon: Package },
+  { href: '/dashboard/inventory', label: 'My Seeds', icon: Package },
   { href: '/dashboard/calendar', label: 'Calendar', icon: Calendar },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]

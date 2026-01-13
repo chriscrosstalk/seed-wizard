@@ -95,9 +95,20 @@ export function SeedCard({ seed, onDelete }: SeedCardProps) {
             {seed.planting_method && (
               <div className="mt-2 text-xs text-gray-500">
                 {seed.planting_method === 'start_indoors' && 'Start indoors'}
-                {seed.planting_method === 'direct_sow' && 'Direct sow'}
-                {seed.weeks_before_last_frost && seed.planting_method !== 'direct_sow' && (
+                {seed.planting_method === 'direct_sow' && (
+                  seed.cold_hardy ? 'Direct sow (cold hardy)' : 'Direct sow'
+                )}
+                {/* Indoor starts: weeks before last frost */}
+                {seed.planting_method === 'start_indoors' && seed.weeks_before_last_frost && (
                   <span> • {seed.weeks_before_last_frost}w before last frost</span>
+                )}
+                {/* Direct sow cold hardy: weeks before last frost outdoor */}
+                {seed.planting_method === 'direct_sow' && seed.cold_hardy && seed.weeks_before_last_frost_outdoor && (
+                  <span> • {seed.weeks_before_last_frost_outdoor}w before last frost</span>
+                )}
+                {/* Direct sow not cold hardy: weeks after last frost */}
+                {seed.planting_method === 'direct_sow' && !seed.cold_hardy && seed.weeks_after_last_frost != null && (
+                  <span> • {seed.weeks_after_last_frost}w after last frost</span>
                 )}
               </div>
             )}

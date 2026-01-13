@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, Wand2 } from 'lucide-react'
 import type { Seed, SeedInsert } from '@/types/database'
+import { findPlantDefault } from '@/lib/plant-defaults'
 
 interface SeedFormProps {
   initialData?: Seed
@@ -55,6 +56,39 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
   const [weeksBeforeLastFrost, setWeeksBeforeLastFrost] = useState<string>(initialData?.weeks_before_last_frost?.toString() ?? '')
   const [weeksAfterLastFrost, setWeeksAfterLastFrost] = useState<string>(initialData?.weeks_after_last_frost?.toString() ?? '')
   const [weeksBeforeLastFrostOutdoor, setWeeksBeforeLastFrostOutdoor] = useState<string>(initialData?.weeks_before_last_frost_outdoor?.toString() ?? '')
+
+  // State for common name (to enable Apply Defaults button)
+  const [commonName, setCommonName] = useState<string>(initialData?.common_name ?? '')
+
+  // Check if timing info is missing
+  const hasTiming = weeksBeforeLastFrost || weeksAfterLastFrost || weeksBeforeLastFrostOutdoor
+
+  // Get defaults for current common name
+  const plantDefault = commonName ? findPlantDefault(commonName) : undefined
+
+  // Apply defaults from plant database
+  const handleApplyDefaults = () => {
+    if (!plantDefault) return
+
+    // Set planting method
+    if (plantDefault.planting_method) {
+      setPlantingMethod(plantDefault.planting_method)
+    }
+
+    // Set cold hardy
+    setColdHardy(plantDefault.cold_hardy)
+
+    // Set appropriate weeks field based on planting method and cold hardiness
+    if (plantDefault.planting_method === 'start_indoors' && plantDefault.weeks_before_last_frost) {
+      setWeeksBeforeLastFrost(plantDefault.weeks_before_last_frost.toString())
+    } else if (plantDefault.planting_method === 'direct_sow') {
+      if (plantDefault.cold_hardy && plantDefault.weeks_before_last_frost_outdoor) {
+        setWeeksBeforeLastFrostOutdoor(plantDefault.weeks_before_last_frost_outdoor.toString())
+      } else if (!plantDefault.cold_hardy && plantDefault.weeks_after_last_frost !== undefined) {
+        setWeeksAfterLastFrost(plantDefault.weeks_after_last_frost.toString())
+      }
+    }
+  }
 
   const handleImportFromUrl = async () => {
     if (!importUrl) {
@@ -149,6 +183,7 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
         // Basic info
         setInput('variety_name', data.variety_name)
         setInput('common_name', data.common_name)
+        if (data.common_name) setCommonName(data.common_name)
         setInput('seed_company', data.company_name)
         setInput('product_url', data.product_url)
 
@@ -344,7 +379,8 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
                 type="text"
                 id="common_name"
                 name="common_name"
-                defaultValue={initialData?.common_name ?? ''}
+                value={commonName}
+                onChange={(e) => setCommonName(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 placeholder="e.g., Tomato"
               />
@@ -484,7 +520,7 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
                 id="planting_depth_inches"
                 name="planting_depth_inches"
                 min="0"
-                step="0.125"
+                step="any"
                 defaultValue={initialData?.planting_depth_inches ?? ''}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
               />
@@ -522,7 +558,19 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
 
         {/* Planting Schedule */}
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-medium text-gray-900">Planting Schedule</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-medium text-gray-900">Planting Schedule</h2>
+            {plantDefault && !hasTiming && (
+              <button
+                type="button"
+                onClick={handleApplyDefaults}
+                className="flex items-center gap-1.5 rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200"
+              >
+                <Wand2 className="h-4 w-4" />
+                Apply {plantDefault.category} defaults
+              </button>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label htmlFor="planting_method" className="block text-sm font-medium text-gray-700">
