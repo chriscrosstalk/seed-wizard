@@ -4,21 +4,31 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Trash2, ExternalLink } from 'lucide-react'
 import type { Seed } from '@/types/database'
+import type { CategoryFilter } from './seed-list'
 
 interface SeedCardProps {
   seed: Seed
+  category?: CategoryFilter
   onDelete?: (id: string) => void
 }
 
-export function SeedCard({ seed, onDelete }: SeedCardProps) {
+const categoryStyles: Record<CategoryFilter, { border: string; bg: string }> = {
+  vegetable: { border: 'border-sky-200', bg: 'bg-sky-50' },
+  flower: { border: 'border-rose-200', bg: 'bg-rose-50' },
+  herb: { border: 'border-emerald-200', bg: 'bg-emerald-50' },
+}
+
+export function SeedCard({ seed, category = 'vegetable', onDelete }: SeedCardProps) {
   const maturityText = seed.days_to_maturity_min
     ? seed.days_to_maturity_max && seed.days_to_maturity_max !== seed.days_to_maturity_min
       ? `${seed.days_to_maturity_min}-${seed.days_to_maturity_max} days`
       : `${seed.days_to_maturity_min} days`
     : null
 
+  const styles = categoryStyles[category]
+
   return (
-    <div className="relative rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden group">
+    <div className={`relative rounded-lg border ${styles.border} ${styles.bg} shadow-sm overflow-hidden group`}>
       {/* Clickable overlay for entire card */}
       <Link
         href={`/dashboard/inventory/${seed.id}`}
