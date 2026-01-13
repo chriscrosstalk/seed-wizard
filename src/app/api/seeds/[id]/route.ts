@@ -80,11 +80,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     )
   }
 
-  // Clean empty strings to null for optional URL fields
-  const updateData: SeedUpdate = {
-    ...result.data,
-    product_url: result.data.product_url || null,
-    image_url: result.data.image_url || null,
+  // Build update data, only including fields that were explicitly provided
+  // Clean empty strings to null for optional URL fields only if they were provided
+  const updateData: SeedUpdate = { ...result.data }
+
+  // Only modify URL fields if they were explicitly included in the request
+  if ('product_url' in body) {
+    updateData.product_url = result.data.product_url || null
+  }
+  if ('image_url' in body) {
+    updateData.image_url = result.data.image_url || null
   }
 
   const { data, error } = await supabase
