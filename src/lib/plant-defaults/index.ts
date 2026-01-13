@@ -106,6 +106,15 @@ export const PLANT_DEFAULTS: PlantDefault[] = [
     cold_hardy: true,
     days_to_maturity: { min: 80, max: 90 }
   },
+  {
+    names: ['lemon grass', 'lemongrass', 'east indian lemon grass'],
+    category: 'herb',
+    planting_method: 'start_indoors',
+    weeks_before_last_frost: 10,
+    cold_hardy: false,
+    days_to_maturity: { min: 75, max: 85 },
+    notes: 'Does not tolerate frost. Transplant when soil reaches 45°F. Can overwinter indoors in pots.'
+  },
 
   // ============ VEGETABLES - WARM SEASON ============
   {
