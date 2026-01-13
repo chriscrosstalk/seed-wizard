@@ -2,22 +2,24 @@ import Link from 'next/link'
 import { Plus, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { SeedList } from '@/components/seeds/seed-list'
-import type { Seed } from '@/types/database'
+import type { Seed, Profile } from '@/types/database'
 
 export default async function InventoryPage() {
   const supabase = await createClient()
 
-  // For now, fetch all seeds (will be filtered by user_id once auth is added)
-  const { data, error } = await supabase
-    .from('seeds')
-    .select('*')
-    .order('created_at', { ascending: false })
+  // Fetch seeds and profile in parallel
+  const [seedsResult, profileResult] = await Promise.all([
+    supabase.from('seeds').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('*').single(),
+  ])
 
-  if (error) {
-    console.error('Error fetching seeds:', error)
+  if (seedsResult.error) {
+    console.error('Error fetching seeds:', seedsResult.error)
   }
 
-  const seedList = (data as Seed[] | null) ?? []
+  const seedList = (seedsResult.data as Seed[] | null) ?? []
+  const profile = profileResult.data as Profile | null
+  const lastFrostDate = profile?.last_frost_date ?? null
 
   return (
     <div>
@@ -53,7 +55,7 @@ export default async function InventoryPage() {
           </Link>
         </div>
       ) : (
-        <SeedList seeds={seedList} />
+        <SeedList seeds={seedList} lastFrostDate={lastFrostDate} />
       )}
     </div>
   )

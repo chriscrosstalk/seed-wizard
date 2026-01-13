@@ -30,6 +30,8 @@ const seedUpdateSchema = z.object({
   fall_planting: z.boolean().optional(),
   cold_stratification_required: z.boolean().optional(),
   cold_stratification_weeks: z.number().int().min(1).optional().nullable(),
+  is_favorite: z.boolean().optional(),
+  is_planted: z.boolean().optional(),
 })
 
 interface RouteParams {

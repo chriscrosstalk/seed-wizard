@@ -68,6 +68,8 @@ export interface Database {
           succession_planting: boolean
           succession_interval_days: number | null
           fall_planting: boolean
+          is_favorite: boolean
+          is_planted: boolean
           cold_stratification_required: boolean
           cold_stratification_weeks: number | null
           ai_extracted: boolean
@@ -102,6 +104,8 @@ export interface Database {
           succession_planting?: boolean
           succession_interval_days?: number | null
           fall_planting?: boolean
+          is_favorite?: boolean
+          is_planted?: boolean
           cold_stratification_required?: boolean
           cold_stratification_weeks?: number | null
           ai_extracted?: boolean
@@ -136,6 +140,8 @@ export interface Database {
           succession_planting?: boolean
           succession_interval_days?: number | null
           fall_planting?: boolean
+          is_favorite?: boolean
+          is_planted?: boolean
           cold_stratification_required?: boolean
           cold_stratification_weeks?: number | null
           ai_extracted?: boolean

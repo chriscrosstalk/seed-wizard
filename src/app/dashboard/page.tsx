@@ -1,7 +1,21 @@
 import Link from 'next/link'
 import { Package, Calendar, Settings, Plus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { PlantableNowWidget } from '@/components/dashboard/plantable-now-widget'
+import type { Profile, Seed } from '@/types/database'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  // Fetch profile and seeds for the widget
+  const { data: profileData } = await supabase.from('profiles').select('*').single()
+  const { data: seedsData } = await supabase.from('seeds').select('*')
+
+  const profile = profileData as Profile | null
+  const seeds = (seedsData as Seed[] | null) ?? []
+
+  const showWidget = profile?.last_frost_date && seeds.length > 0
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -82,6 +96,13 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* Plantable Now Widget */}
+      {showWidget && profile && (
+        <div className="mt-8">
+          <PlantableNowWidget seeds={seeds} profile={profile} />
+        </div>
+      )}
     </div>
   )
 }

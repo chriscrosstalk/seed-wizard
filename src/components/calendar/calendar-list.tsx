@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Calendar } from 'lucide-react'
+import { Calendar, Sprout, Home, Sun } from 'lucide-react'
 import { findPlantDefault } from '@/lib/plant-defaults'
 import type { Seed } from '@/types/database'
 
@@ -13,6 +13,10 @@ interface CalendarListProps {
 type CategoryFilter = 'vegetable' | 'flower' | 'herb'
 
 const FILTER_STORAGE_KEY = 'seed-wizard-category-filters'
+const HIDE_PLANTED_KEY = 'seed-wizard-hide-planted'
+const PLANTABLE_NOW_KEY = 'seed-wizard-calendar-plantable-now'
+const SHOW_INDOOR_KEY = 'seed-wizard-plantable-indoor'
+const SHOW_OUTDOOR_KEY = 'seed-wizard-plantable-outdoor'
 
 const defaultFilters: Record<CategoryFilter, boolean> = {
   vegetable: true,
@@ -32,6 +36,13 @@ function getStoredFilters(): Record<CategoryFilter, boolean> {
     }
   }
   return defaultFilters
+}
+
+function getStoredBoolean(key: string, defaultValue: boolean = false): boolean {
+  if (typeof window === 'undefined') return defaultValue
+  const stored = localStorage.getItem(key)
+  if (stored === null) return defaultValue
+  return stored === 'true'
 }
 
 const categoryStyles: Record<CategoryFilter, { border: string; bg: string; text: string }> = {
@@ -70,10 +81,18 @@ function getCategory(seed: Seed): CategoryFilter {
 
 export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryFilter, boolean>>(defaultFilters)
+  const [hidePlanted, setHidePlanted] = useState(false)
+  const [plantableNow, setPlantableNow] = useState(false)
+  const [showIndoor, setShowIndoor] = useState(true)
+  const [showOutdoor, setShowOutdoor] = useState(true)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setCategoryFilters(getStoredFilters())
+    setHidePlanted(getStoredBoolean(HIDE_PLANTED_KEY))
+    setPlantableNow(getStoredBoolean(PLANTABLE_NOW_KEY))
+    setShowIndoor(getStoredBoolean(SHOW_INDOOR_KEY, true))
+    setShowOutdoor(getStoredBoolean(SHOW_OUTDOOR_KEY, true))
     setMounted(true)
   }, [])
 
@@ -85,7 +104,46 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
     })
   }
 
+  const toggleHidePlanted = () => {
+    setHidePlanted(prev => {
+      const newValue = !prev
+      localStorage.setItem(HIDE_PLANTED_KEY, String(newValue))
+      return newValue
+    })
+  }
+
+  const togglePlantableNow = () => {
+    setPlantableNow(prev => {
+      const newValue = !prev
+      localStorage.setItem(PLANTABLE_NOW_KEY, String(newValue))
+      return newValue
+    })
+  }
+
+  const toggleShowIndoor = () => {
+    setShowIndoor(prev => {
+      const newValue = !prev
+      localStorage.setItem(SHOW_INDOOR_KEY, String(newValue))
+      return newValue
+    })
+  }
+
+  const toggleShowOutdoor = () => {
+    setShowOutdoor(prev => {
+      const newValue = !prev
+      localStorage.setItem(SHOW_OUTDOOR_KEY, String(newValue))
+      return newValue
+    })
+  }
+
   const lastFrost = new Date(lastFrostDate)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Calculate the 4-week window for "plantable now" filter
+  const windowEnd = new Date(today)
+  windowEnd.setDate(windowEnd.getDate() + 4 * 7)
 
   // Calculate planting info, add category, filter, and sort by date
   const sortedSeeds = useMemo(() => {
@@ -95,11 +153,30 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
         planting: getPlantingDate(seed, lastFrost),
         category: getCategory(seed),
       }))
-      .filter((item): item is { seed: Seed; planting: { date: Date; eventType: string }; category: CategoryFilter } =>
-        item.planting !== null && categoryFilters[item.category]
-      )
+      .filter((item): item is { seed: Seed; planting: { date: Date; eventType: string }; category: CategoryFilter } => {
+        if (item.planting === null) return false
+        if (!categoryFilters[item.category]) return false
+        if (hidePlanted && item.seed.is_planted) return false
+
+        // Plantable now filter: within 4-week window
+        if (plantableNow) {
+          const plantingDate = new Date(item.planting.date)
+          plantingDate.setHours(0, 0, 0, 0)
+          const plantingWindowEnd = new Date(plantingDate)
+          plantingWindowEnd.setDate(plantingWindowEnd.getDate() + 4 * 7)
+          // Only show if within window
+          if (!(plantingWindowEnd >= today && plantingDate <= windowEnd)) return false
+
+          // Indoor/outdoor filter (only applies when plantable now is enabled)
+          const isIndoor = item.planting.eventType === 'Start indoors'
+          if (isIndoor && !showIndoor) return false
+          if (!isIndoor && !showOutdoor) return false
+        }
+
+        return true
+      })
       .sort((a, b) => a.planting.date.getTime() - b.planting.date.getTime())
-  }, [seeds, lastFrost, categoryFilters])
+  }, [seeds, lastFrost, categoryFilters, hidePlanted, plantableNow, showIndoor, showOutdoor, today, windowEnd])
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
@@ -111,7 +188,7 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
           </h2>
 
           {/* Category Filters */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer rounded-full bg-sky-100 px-3 py-1 border border-sky-200">
               <input
                 type="checkbox"
@@ -139,6 +216,50 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
               />
               <span className="text-sm font-medium text-emerald-800">Herbs</span>
             </label>
+            <div className="hidden sm:block h-6 w-px bg-gray-300" />
+            <label className="flex items-center gap-2 cursor-pointer rounded-full bg-gray-100 px-3 py-1 border border-gray-200">
+              <input
+                type="checkbox"
+                checked={hidePlanted}
+                onChange={toggleHidePlanted}
+                className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Hide planted</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer rounded-full bg-green-50 px-3 py-1 border border-green-200">
+              <input
+                type="checkbox"
+                checked={plantableNow}
+                onChange={togglePlantableNow}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <Sprout className="h-3 w-3 text-green-600" />
+              <span className="text-sm font-medium text-green-800">Plantable now</span>
+            </label>
+            {plantableNow && (
+              <>
+                <label className="flex items-center gap-2 cursor-pointer rounded-full bg-purple-50 px-3 py-1 border border-purple-200">
+                  <input
+                    type="checkbox"
+                    checked={showIndoor}
+                    onChange={toggleShowIndoor}
+                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <Home className="h-3 w-3 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">Indoor</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer rounded-full bg-orange-50 px-3 py-1 border border-orange-200">
+                  <input
+                    type="checkbox"
+                    checked={showOutdoor}
+                    onChange={toggleShowOutdoor}
+                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <Sun className="h-3 w-3 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-800">Outdoor</span>
+                </label>
+              </>
+            )}
           </div>
         </div>
       </div>

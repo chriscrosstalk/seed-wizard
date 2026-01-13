@@ -5,11 +5,15 @@ import Image from 'next/image'
 import { Trash2, ExternalLink } from 'lucide-react'
 import type { Seed } from '@/types/database'
 import type { CategoryFilter } from './seed-list'
+import { FavoriteButton } from './favorite-button'
+import { PlantedCheckbox } from './planted-checkbox'
 
 interface SeedCardProps {
   seed: Seed
   category?: CategoryFilter
   onDelete?: (id: string) => void
+  onFavoriteChange?: (id: string, value: boolean) => void
+  onPlantedChange?: (id: string, value: boolean) => void
 }
 
 const categoryStyles: Record<CategoryFilter, { border: string; bg: string }> = {
@@ -18,7 +22,7 @@ const categoryStyles: Record<CategoryFilter, { border: string; bg: string }> = {
   herb: { border: 'border-emerald-200', bg: 'bg-emerald-50' },
 }
 
-export function SeedCard({ seed, category = 'vegetable', onDelete }: SeedCardProps) {
+export function SeedCard({ seed, category = 'vegetable', onDelete, onFavoriteChange, onPlantedChange }: SeedCardProps) {
   const maturityText = seed.days_to_maturity_min
     ? seed.days_to_maturity_max && seed.days_to_maturity_max !== seed.days_to_maturity_min
       ? `${seed.days_to_maturity_min}-${seed.days_to_maturity_max} days`
@@ -64,19 +68,26 @@ export function SeedCard({ seed, category = 'vegetable', onDelete }: SeedCardPro
                 )}
               </div>
 
-              {/* Delete button - needs pointer-events */}
-              {onDelete && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(seed.id)
-                  }}
-                  className="pointer-events-auto rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
+              {/* Action buttons - need pointer-events */}
+              <div className="flex items-center gap-1">
+                <FavoriteButton
+                  seedId={seed.id}
+                  initialValue={seed.is_favorite}
+                  onToggle={(value) => onFavoriteChange?.(seed.id, value)}
+                />
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(seed.id)
+                    }}
+                    className="pointer-events-auto rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -123,18 +134,25 @@ export function SeedCard({ seed, category = 'vegetable', onDelete }: SeedCardPro
               </div>
             )}
 
-            {seed.product_url && (
-              <a
-                href={seed.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="pointer-events-auto mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Product page
-              </a>
-            )}
+            <div className="mt-2 flex items-center justify-between">
+              <PlantedCheckbox
+                seedId={seed.id}
+                initialValue={seed.is_planted}
+                onToggle={(value) => onPlantedChange?.(seed.id, value)}
+              />
+              {seed.product_url && (
+                <a
+                  href={seed.product_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="pointer-events-auto inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Product page
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
