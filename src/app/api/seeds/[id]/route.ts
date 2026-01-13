@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Seed, SeedUpdate } from '@/types/database'
 
+// Convert HTTP URLs to HTTPS for security
+function normalizeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  return url.replace(/^http:\/\//i, 'https://')
+}
+
 // Validation schema for updating seeds
 const seedUpdateSchema = z.object({
   variety_name: z.string().min(1, 'Variety name is required').optional(),
@@ -89,7 +95,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     updateData.product_url = result.data.product_url || null
   }
   if ('image_url' in body) {
-    updateData.image_url = result.data.image_url || null
+    updateData.image_url = normalizeImageUrl(result.data.image_url)
   }
 
   const { data, error } = await supabase

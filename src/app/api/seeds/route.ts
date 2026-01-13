@@ -4,6 +4,12 @@ import { z } from 'zod'
 import type { Seed, SeedInsert } from '@/types/database'
 import { getDefaultTiming } from '@/lib/plant-defaults'
 
+// Convert HTTP URLs to HTTPS for security
+function normalizeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  return url.replace(/^http:\/\//i, 'https://')
+}
+
 // Validation schema for creating/updating seeds
 const seedSchema = z.object({
   variety_name: z.string().min(1, 'Variety name is required'),
@@ -73,7 +79,7 @@ export async function POST(request: NextRequest) {
   const seedData: SeedInsert = {
     ...result.data,
     product_url: result.data.product_url || null,
-    image_url: result.data.image_url || null,
+    image_url: normalizeImageUrl(result.data.image_url),
     // TODO: Replace with actual user ID from auth
     user_id: '00000000-0000-0000-0000-000000000000',
   }
