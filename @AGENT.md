@@ -1,158 +1,178 @@
-# Agent Build Instructions
+# Seed Wizard - Agent Build Instructions
+
+## Tech Stack
+- **Framework**: Next.js 14+ (App Router)
+- **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS
+- **AI**: Claude API (Anthropic)
 
 ## Project Setup
+
 ```bash
-# Install dependencies (example for Node.js project)
-npm install
+# Create Next.js project (if not already created)
+npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir
 
-# Or for Python project
-pip install -r requirements.txt
+# Install dependencies
+npm install @supabase/supabase-js @supabase/ssr
+npm install @anthropic-ai/sdk
+npm install date-fns zod lucide-react
 
-# Or for Rust project  
-cargo build
+# Install dev dependencies
+npm install -D supabase
+```
+
+## Environment Variables
+
+Create `.env.local`:
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Anthropic (for AI extraction)
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+## Running the Application
+
+```bash
+# Development server
+npm run dev
+
+# Open http://localhost:3000
 ```
 
 ## Running Tests
+
 ```bash
-# Node.js
+# Run all tests
 npm test
 
-# Python
-pytest
+# Run tests in watch mode
+npm run test:watch
 
-# Rust
-cargo test
+# Run tests with coverage
+npm run test:coverage
 ```
 
 ## Build Commands
+
 ```bash
 # Production build
 npm run build
+
+# Start production server
+npm start
+
+# Type checking
+npm run type-check
 # or
-cargo build --release
+npx tsc --noEmit
 ```
 
-## Development Server
+## Supabase Commands
+
 ```bash
-# Start development server
-npm run dev
-# or
-cargo run
+# Start local Supabase (requires Docker)
+npx supabase start
+
+# Generate TypeScript types from database
+npx supabase gen types typescript --local > src/types/database.ts
+
+# Run migrations
+npx supabase db push
+
+# Open Supabase Studio (local)
+# http://localhost:54323
 ```
+
+## Linting & Formatting
+
+```bash
+# Run ESLint
+npm run lint
+
+# Fix ESLint issues
+npm run lint:fix
+
+# Format with Prettier (if configured)
+npm run format
+```
+
+## Key File Locations
+
+| Purpose | Location |
+|---------|----------|
+| Pages | `src/app/` |
+| API Routes | `src/app/api/` |
+| Components | `src/components/` |
+| Supabase Client | `src/lib/supabase/` |
+| Claude Integration | `src/lib/claude/` |
+| Calendar Logic | `src/lib/calendar/` |
+| Types | `src/types/` |
+| Database Migrations | `supabase/migrations/` |
+
+## Database Schema Location
+
+See `specs/database.md` for full schema. Key tables:
+- `profiles` - User settings (ZIP code, zone, frost dates)
+- `seeds` - Seed inventory
+- `zip_frost_data` - ZIP to zone/frost date lookup
+
+## Common Development Tasks
+
+### Adding a New Page
+1. Create file in `src/app/dashboard/[page-name]/page.tsx`
+2. Export default async function component
+3. Add to navigation if needed
+
+### Adding an API Route
+1. Create file in `src/app/api/[route-name]/route.ts`
+2. Export GET, POST, PUT, DELETE handlers as needed
+3. Use `createClient()` from `src/lib/supabase/server.ts`
+
+### Adding a Component
+1. Create in `src/components/[category]/[component-name].tsx`
+2. Use TypeScript interfaces for props
+3. Export as named export
 
 ## Key Learnings
-- Update this section when you learn new build optimizations
-- Document any gotchas or special setup requirements
-- Keep track of the fastest test/build cycle
+- Next.js App Router uses file-based routing in `src/app/`
+- Supabase client differs between client and server components
+- Use `'use client'` directive for interactive components
+- API routes use Web Request/Response APIs
+- Claude tool use requires specific schema format
 
 ## Feature Development Quality Standards
 
-**CRITICAL**: All new features MUST meet the following mandatory requirements before being considered complete.
-
 ### Testing Requirements
+- Minimum 85% code coverage for new code
+- All tests must pass before marking complete
+- Unit tests for business logic
+- Integration tests for API routes
 
-- **Minimum Coverage**: 85% code coverage ratio required for all new code
-- **Test Pass Rate**: 100% - all tests must pass, no exceptions
-- **Test Types Required**:
-  - Unit tests for all business logic and services
-  - Integration tests for API endpoints or main functionality
-  - End-to-end tests for critical user workflows
-- **Coverage Validation**: Run coverage reports before marking features complete:
-  ```bash
-  # Examples by language/framework
-  npm run test:coverage
-  pytest --cov=src tests/ --cov-report=term-missing
-  cargo tarpaulin --out Html
-  ```
-- **Test Quality**: Tests must validate behavior, not just achieve coverage metrics
-- **Test Documentation**: Complex test scenarios must include comments explaining the test strategy
+### Git Workflow
+- Use conventional commits: `feat:`, `fix:`, `docs:`, `test:`
+- Commit after each completed task
+- Push regularly to maintain backup
 
-### Git Workflow Requirements
+### Documentation
+- Update this file when adding new patterns
+- Keep inline comments minimal but meaningful
+- Update specs/ if requirements change
 
-Before moving to the next feature, ALL changes must be:
+## Feature Completion Checklist
 
-1. **Committed with Clear Messages**:
-   ```bash
-   git add .
-   git commit -m "feat(module): descriptive message following conventional commits"
-   ```
-   - Use conventional commit format: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, etc.
-   - Include scope when applicable: `feat(api):`, `fix(ui):`, `test(auth):`
-   - Write descriptive messages that explain WHAT changed and WHY
-
-2. **Pushed to Remote Repository**:
-   ```bash
-   git push origin <branch-name>
-   ```
-   - Never leave completed features uncommitted
-   - Push regularly to maintain backup and enable collaboration
-   - Ensure CI/CD pipelines pass before considering feature complete
-
-3. **Branch Hygiene**:
-   - Work on feature branches, never directly on `main`
-   - Branch naming convention: `feature/<feature-name>`, `fix/<issue-name>`, `docs/<doc-update>`
-   - Create pull requests for all significant changes
-
-4. **Ralph Integration**:
-   - Update @fix_plan.md with new tasks before starting work
-   - Mark items complete in @fix_plan.md upon completion
-   - Update PROMPT.md if development patterns change
-   - Test features work within Ralph's autonomous loop
-
-### Documentation Requirements
-
-**ALL implementation documentation MUST remain synchronized with the codebase**:
-
-1. **Code Documentation**:
-   - Language-appropriate documentation (JSDoc, docstrings, etc.)
-   - Update inline comments when implementation changes
-   - Remove outdated comments immediately
-
-2. **Implementation Documentation**:
-   - Update relevant sections in this AGENT.md file
-   - Keep build and test commands current
-   - Update configuration examples when defaults change
-   - Document breaking changes prominently
-
-3. **README Updates**:
-   - Keep feature lists current
-   - Update setup instructions when dependencies change
-   - Maintain accurate command examples
-   - Update version compatibility information
-
-4. **AGENT.md Maintenance**:
-   - Add new build patterns to relevant sections
-   - Update "Key Learnings" with new insights
-   - Keep command examples accurate and tested
-   - Document new testing patterns or quality gates
-
-### Feature Completion Checklist
-
-Before marking ANY feature as complete, verify:
-
-- [ ] All tests pass with appropriate framework command
-- [ ] Code coverage meets 85% minimum threshold
-- [ ] Coverage report reviewed for meaningful test quality
-- [ ] Code formatted according to project standards
-- [ ] Type checking passes (if applicable)
-- [ ] All changes committed with conventional commit messages
-- [ ] All commits pushed to remote repository
-- [ ] @fix_plan.md task marked as complete
-- [ ] Implementation documentation updated
-- [ ] Inline code comments updated or added
-- [ ] AGENT.md updated (if new patterns introduced)
-- [ ] Breaking changes documented
-- [ ] Features tested within Ralph loop (if applicable)
-- [ ] CI/CD pipeline passes
-
-### Rationale
-
-These standards ensure:
-- **Quality**: High test coverage and pass rates prevent regressions
-- **Traceability**: Git commits and @fix_plan.md provide clear history of changes
-- **Maintainability**: Current documentation reduces onboarding time and prevents knowledge loss
-- **Collaboration**: Pushed changes enable team visibility and code review
-- **Reliability**: Consistent quality gates maintain production stability
-- **Automation**: Ralph integration ensures continuous development practices
-
-**Enforcement**: AI agents should automatically apply these standards to all feature development tasks without requiring explicit instruction for each task.
+Before marking ANY feature complete:
+- [ ] All tests pass
+- [ ] Code coverage meets 85% threshold
+- [ ] TypeScript compiles without errors (`npm run type-check`)
+- [ ] ESLint passes (`npm run lint`)
+- [ ] Changes committed with conventional commit message
+- [ ] @fix_plan.md task marked complete
+- [ ] Documentation updated if needed
