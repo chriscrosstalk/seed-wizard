@@ -15,6 +15,7 @@ export type CategoryFilter = 'vegetable' | 'flower' | 'herb'
 type SortOption = 'alpha-asc' | 'alpha-desc' | 'planting-asc' | 'planting-desc' | 'added-desc'
 
 const SORT_STORAGE_KEY = 'seed-wizard-sort-preference'
+const FILTER_STORAGE_KEY = 'seed-wizard-category-filters'
 
 function getStoredSort(): SortOption {
   if (typeof window === 'undefined') return 'alpha-asc'
@@ -25,28 +26,46 @@ function getStoredSort(): SortOption {
   return 'alpha-asc'
 }
 
+const defaultFilters: Record<CategoryFilter, boolean> = {
+  vegetable: true,
+  flower: true,
+  herb: true,
+}
+
+function getStoredFilters(): Record<CategoryFilter, boolean> {
+  if (typeof window === 'undefined') return defaultFilters
+  const stored = localStorage.getItem(FILTER_STORAGE_KEY)
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      return { ...defaultFilters, ...parsed }
+    } catch {
+      return defaultFilters
+    }
+  }
+  return defaultFilters
+}
+
 export function SeedList({ seeds }: SeedListProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('alpha-asc')
   const [mounted, setMounted] = useState(false)
 
-  // Load stored preference on mount
+  const [categoryFilters, setCategoryFilters] = useState<Record<CategoryFilter, boolean>>(defaultFilters)
+
+  // Load stored preferences on mount
   useEffect(() => {
     setSortBy(getStoredSort())
+    setCategoryFilters(getStoredFilters())
     setMounted(true)
   }, [])
 
-  // Save preference when it changes
+  // Save sort preference when it changes
   const handleSortChange = (newSort: SortOption) => {
     setSortBy(newSort)
     localStorage.setItem(SORT_STORAGE_KEY, newSort)
   }
-  const [categoryFilters, setCategoryFilters] = useState<Record<CategoryFilter, boolean>>({
-    vegetable: true,
-    flower: true,
-    herb: true,
-  })
 
   // Determine category for each seed based on common_name
   const seedsWithCategory = useMemo(() => {
@@ -109,7 +128,11 @@ export function SeedList({ seeds }: SeedListProps) {
   }, [filteredSeeds, sortBy])
 
   const toggleCategory = (category: CategoryFilter) => {
-    setCategoryFilters(prev => ({ ...prev, [category]: !prev[category] }))
+    setCategoryFilters(prev => {
+      const updated = { ...prev, [category]: !prev[category] }
+      localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(updated))
+      return updated
+    })
   }
 
   async function handleDelete(id: string) {
