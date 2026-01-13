@@ -143,7 +143,7 @@ export function SeedList({ seeds }: SeedListProps) {
               onChange={() => toggleCategory('vegetable')}
               className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
             />
-            <span className="text-sm font-medium text-sky-800">Vegetables</span>
+            <span className="text-sm font-medium text-sky-800">Fruits/Vegetables</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer rounded-full bg-rose-100 px-3 py-1 border border-rose-200">
             <input
