@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { SeedCard } from './seed-card'
 import { findPlantDefault } from '@/lib/plant-defaults'
@@ -14,10 +14,34 @@ export type CategoryFilter = 'vegetable' | 'flower' | 'herb'
 
 type SortOption = 'alpha-asc' | 'alpha-desc' | 'planting-asc' | 'planting-desc' | 'added-desc'
 
+const SORT_STORAGE_KEY = 'seed-wizard-sort-preference'
+
+function getStoredSort(): SortOption {
+  if (typeof window === 'undefined') return 'alpha-asc'
+  const stored = localStorage.getItem(SORT_STORAGE_KEY)
+  if (stored && ['alpha-asc', 'alpha-desc', 'planting-asc', 'planting-desc', 'added-desc'].includes(stored)) {
+    return stored as SortOption
+  }
+  return 'alpha-asc'
+}
+
 export function SeedList({ seeds }: SeedListProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('alpha-asc')
+  const [mounted, setMounted] = useState(false)
+
+  // Load stored preference on mount
+  useEffect(() => {
+    setSortBy(getStoredSort())
+    setMounted(true)
+  }, [])
+
+  // Save preference when it changes
+  const handleSortChange = (newSort: SortOption) => {
+    setSortBy(newSort)
+    localStorage.setItem(SORT_STORAGE_KEY, newSort)
+  }
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryFilter, boolean>>({
     vegetable: true,
     flower: true,
@@ -120,7 +144,7 @@ export function SeedList({ seeds }: SeedListProps) {
           <select
             id="sort-by"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => handleSortChange(e.target.value as SortOption)}
             className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
           >
             <option value="alpha-asc">Name (A-Z)</option>
