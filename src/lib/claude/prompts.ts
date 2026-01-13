@@ -8,15 +8,17 @@ IMPORTANT GUIDELINES:
 2. Do not make assumptions or fill in default values
 3. Convert measurements to inches (e.g., "1/4 inch" = 0.25)
 4. Split maturity ranges into min/max (e.g., "65-75 days" = min: 65, max: 75)
-5. For planting_method:
-   - "start_indoors" = seeds started indoors before transplanting
-   - "direct_sow" = seeds planted directly in garden
-   - "both" = either method works
+5. For planting_method, determine which method the seed company RECOMMENDS:
+   - "start_indoors" = seeds started indoors before transplanting (look for "Transplant recommended", "Start indoors", etc.)
+   - "direct_sow" = seeds planted directly in garden (look for "Direct sow recommended", "Sow outdoors", etc.)
+   - If both methods are mentioned but one says "recommended", use that one
+   - If unclear, use "start_indoors" for heat-loving crops (tomatoes, peppers) and "direct_sow" for root crops and cold-hardy greens
 6. weeks_before_last_frost = weeks before last frost to START seeds indoors
 7. weeks_after_last_frost = weeks AFTER last frost to direct sow outdoors
 8. cold_hardy = true if can be planted outdoors before last frost date
 9. Look for succession planting recommendations
-10. Check for fall planting options or cold stratification requirements`
+10. Check for fall planting options or cold stratification requirements
+11. Extract the main product image URL from the [Product Images] section at the end of the content (prefer the first URL listed, which is usually og:image)`
 
 export const SEED_EXTRACTION_TOOL: Tool = {
   name: 'extract_seed_info',
@@ -68,8 +70,8 @@ export const SEED_EXTRACTION_TOOL: Tool = {
       },
       planting_method: {
         type: 'string',
-        enum: ['direct_sow', 'start_indoors', 'both'],
-        description: 'Recommended planting method'
+        enum: ['direct_sow', 'start_indoors'],
+        description: 'The recommended planting method based on seed company guidance'
       },
       weeks_before_last_frost: {
         type: 'integer',
@@ -110,6 +112,10 @@ export const SEED_EXTRACTION_TOOL: Tool = {
       description: {
         type: 'string',
         description: 'Brief description of the variety'
+      },
+      image_url: {
+        type: 'string',
+        description: 'URL to the main product image (seed packet or plant photo)'
       }
     },
     required: ['variety_name']
@@ -127,7 +133,7 @@ export interface ExtractedSeedData {
   row_spacing_inches?: number
   sun_requirement?: 'full_sun' | 'partial_shade' | 'shade'
   water_requirement?: 'low' | 'medium' | 'high'
-  planting_method?: 'direct_sow' | 'start_indoors' | 'both'
+  planting_method?: 'direct_sow' | 'start_indoors'
   weeks_before_last_frost?: number
   weeks_after_last_frost?: number
   cold_hardy?: boolean
@@ -138,4 +144,5 @@ export interface ExtractedSeedData {
   cold_stratification_required?: boolean
   cold_stratification_weeks?: number
   description?: string
+  image_url?: string
 }

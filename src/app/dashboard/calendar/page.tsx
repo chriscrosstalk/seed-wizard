@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Calendar, MapPin, Sprout } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import type { Profile, Seed } from '@/types/database'
 
 export default async function CalendarPage() {
   const supabase = await createClient()
@@ -9,17 +10,19 @@ export default async function CalendarPage() {
   const userId = '00000000-0000-0000-0000-000000000000'
 
   // Get user's profile for frost dates
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
+  const profile = profileData as Profile | null
 
   // Get all seeds for calendar calculation
-  const { data: seeds } = await supabase
+  const { data: seedsData } = await supabase
     .from('seeds')
     .select('*')
     .order('variety_name')
+  const seeds = seedsData as Seed[] | null
 
   const hasLocation = profile?.last_frost_date && profile?.first_frost_date
   const seedCount = seeds?.length ?? 0
@@ -89,7 +92,7 @@ export default async function CalendarPage() {
                 let plantDate: Date | null = null
                 let eventType = ''
 
-                if (seed.planting_method === 'start_indoors' || seed.planting_method === 'both') {
+                if (seed.planting_method === 'start_indoors') {
                   if (seed.weeks_before_last_frost) {
                     plantDate = new Date(lastFrost)
                     plantDate.setDate(plantDate.getDate() - seed.weeks_before_last_frost * 7)

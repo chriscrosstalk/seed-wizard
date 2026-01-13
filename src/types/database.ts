@@ -49,6 +49,7 @@ export interface Database {
           common_name: string | null
           seed_company: string | null
           product_url: string | null
+          image_url: string | null
           purchase_year: number | null
           quantity_packets: number
           notes: string | null
@@ -82,6 +83,7 @@ export interface Database {
           common_name?: string | null
           seed_company?: string | null
           product_url?: string | null
+          image_url?: string | null
           purchase_year?: number | null
           quantity_packets?: number
           notes?: string | null
@@ -115,6 +117,7 @@ export interface Database {
           common_name?: string | null
           seed_company?: string | null
           product_url?: string | null
+          image_url?: string | null
           purchase_year?: number | null
           quantity_packets?: number
           notes?: string | null

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { ZipFrostData } from '@/types/database'
 
 // GET /api/location?zip=12345 - Look up frost data for a ZIP code
 export async function GET(request: NextRequest) {
@@ -16,16 +17,17 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   // Try to find in our database first
-  const { data: frostData, error } = await supabase
+  const { data, error } = await supabase
     .from('zip_frost_data')
     .select('*')
     .eq('zip_code', zip)
-    .single()
+    .maybeSingle()
 
-  if (error && error.code !== 'PGRST116') {
-    // PGRST116 is "not found", which is OK - we'll use fallback
+  if (error) {
     console.error('Database error:', error)
   }
+
+  const frostData = data as ZipFrostData | null
 
   if (frostData) {
     return NextResponse.json({

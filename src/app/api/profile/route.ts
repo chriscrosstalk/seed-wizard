@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import type { Profile, ProfileInsert } from '@/types/database'
 
 const profileUpdateSchema = z.object({
   display_name: z.string().optional(),
@@ -17,7 +18,7 @@ export async function GET() {
   // TODO: Get actual user ID from auth
   const userId = '00000000-0000-0000-0000-000000000000'
 
-  const { data: profile, error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
@@ -30,7 +31,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(profile)
+  return NextResponse.json(data as Profile)
 }
 
 // PUT /api/profile - Update current user's profile
@@ -56,12 +57,14 @@ export async function PUT(request: NextRequest) {
   const userId = '00000000-0000-0000-0000-000000000000'
 
   // Upsert profile (create if doesn't exist)
-  const { data: profile, error } = await supabase
+  const profileData: ProfileInsert = {
+    id: userId,
+    ...result.data,
+  }
+
+  const { data, error } = await supabase
     .from('profiles')
-    .upsert({
-      id: userId,
-      ...result.data,
-    })
+    .upsert(profileData as never)
     .select()
     .single()
 
@@ -69,5 +72,5 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(profile)
+  return NextResponse.json(data as Profile)
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import type { Seed, SeedUpdate } from '@/types/database'
 
 // Validation schema for updating seeds
 const seedUpdateSchema = z.object({
@@ -8,6 +9,7 @@ const seedUpdateSchema = z.object({
   common_name: z.string().optional().nullable(),
   seed_company: z.string().optional().nullable(),
   product_url: z.string().url().optional().nullable().or(z.literal('')),
+  image_url: z.string().url().optional().nullable().or(z.literal('')),
   purchase_year: z.number().int().min(1900).max(2100).optional().nullable(),
   quantity_packets: z.number().int().min(1).optional(),
   notes: z.string().optional().nullable(),
@@ -18,7 +20,7 @@ const seedUpdateSchema = z.object({
   row_spacing_inches: z.number().int().min(0).optional().nullable(),
   sun_requirement: z.enum(['full_sun', 'partial_shade', 'shade']).optional().nullable(),
   water_requirement: z.enum(['low', 'medium', 'high']).optional().nullable(),
-  planting_method: z.enum(['direct_sow', 'start_indoors', 'both']).optional().nullable(),
+  planting_method: z.enum(['direct_sow', 'start_indoors']).optional().nullable(),
   weeks_before_last_frost: z.number().int().min(0).optional().nullable(),
   weeks_after_last_frost: z.number().int().min(0).optional().nullable(),
   cold_hardy: z.boolean().optional(),
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: seed, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
     .select('*')
     .eq('id', id)
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(seed)
+  return NextResponse.json(data as Seed)
 }
 
 // PUT /api/seeds/[id] - Update a seed
@@ -76,15 +78,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     )
   }
 
-  // Clean empty strings to null for optional URL field
-  const updateData = {
+  // Clean empty strings to null for optional URL fields
+  const updateData: SeedUpdate = {
     ...result.data,
     product_url: result.data.product_url || null,
+    image_url: result.data.image_url || null,
   }
 
-  const { data: seed, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
-    .update(updateData)
+    .update(updateData as never)
     .eq('id', id)
     .select()
     .single()
@@ -96,7 +99,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(seed)
+  return NextResponse.json(data as Seed)
 }
 
 // DELETE /api/seeds/[id] - Delete a seed

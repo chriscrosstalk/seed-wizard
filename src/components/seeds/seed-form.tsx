@@ -14,15 +14,26 @@ interface ExtractedData {
   variety_name?: string
   common_name?: string
   company_name?: string
+  description?: string
   days_to_maturity_min?: number
   days_to_maturity_max?: number
+  planting_depth_inches?: number
+  spacing_inches?: number
+  row_spacing_inches?: number
+  sun_requirement?: string
+  water_requirement?: string
   planting_method?: string
   weeks_before_last_frost?: number
   weeks_after_last_frost?: number
   cold_hardy?: boolean
+  weeks_before_last_frost_outdoor?: number
   succession_planting?: boolean
   succession_interval_days?: number
+  fall_planting?: boolean
+  cold_stratification_required?: boolean
+  cold_stratification_weeks?: number
   product_url?: string
+  image_url?: string
 }
 
 export function SeedForm({ initialData, mode }: SeedFormProps) {
@@ -33,6 +44,17 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
   const [importUrl, setImportUrl] = useState('')
+
+  // State for dynamic form fields
+  const [plantingMethod, setPlantingMethod] = useState<string>(initialData?.planting_method ?? '')
+  const [coldHardy, setColdHardy] = useState(initialData?.cold_hardy ?? false)
+  const [successionPlanting, setSuccessionPlanting] = useState(initialData?.succession_planting ?? false)
+  const [coldStratificationRequired, setColdStratificationRequired] = useState(initialData?.cold_stratification_required ?? false)
+
+  // State for conditionally-rendered weeks fields (need state because fields may not exist when extraction happens)
+  const [weeksBeforeLastFrost, setWeeksBeforeLastFrost] = useState<string>(initialData?.weeks_before_last_frost?.toString() ?? '')
+  const [weeksAfterLastFrost, setWeeksAfterLastFrost] = useState<string>(initialData?.weeks_after_last_frost?.toString() ?? '')
+  const [weeksBeforeLastFrostOutdoor, setWeeksBeforeLastFrostOutdoor] = useState<string>(initialData?.weeks_before_last_frost_outdoor?.toString() ?? '')
 
   const handleImportFromUrl = async () => {
     if (!importUrl) {
@@ -58,21 +80,119 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
 
       setExtractedData(data)
 
+      // Debug: log extracted data to see what we're getting
+      console.log('Extracted data:', JSON.stringify(data, null, 2))
+
+      // Update state for dynamic fields
+      if (data.planting_method) setPlantingMethod(data.planting_method)
+      if (data.succession_planting !== undefined) setSuccessionPlanting(!!data.succession_planting)
+      if (data.cold_stratification_required !== undefined) setColdStratificationRequired(!!data.cold_stratification_required)
+
+      // Determine cold_hardy - use explicit boolean check to handle null/undefined/"true"/true
+      let isColdHardy = coldHardy
+      if (data.cold_hardy === true || data.cold_hardy === 'true') {
+        isColdHardy = true
+        setColdHardy(true)
+        console.log('Setting coldHardy = true (explicit)')
+      } else if (data.cold_hardy === false || data.cold_hardy === 'false') {
+        isColdHardy = false
+        setColdHardy(false)
+        console.log('Setting coldHardy = false (explicit)')
+      } else if (data.planting_method === 'direct_sow') {
+        // Infer cold_hardy from which weeks field has data
+        if (typeof data.weeks_before_last_frost_outdoor === 'number') {
+          isColdHardy = true
+          setColdHardy(true)
+          console.log('Setting coldHardy = true (inferred from weeks_before_last_frost_outdoor)')
+        } else if (typeof data.weeks_before_last_frost === 'number' && typeof data.weeks_after_last_frost !== 'number') {
+          // If we have weeks_before_last_frost but NOT weeks_after_last_frost for direct sow,
+          // this is likely a cold-hardy plant where extraction used wrong field name
+          isColdHardy = true
+          setColdHardy(true)
+          console.log('Setting coldHardy = true (inferred from weeks_before_last_frost for direct_sow)')
+        } else if (typeof data.weeks_after_last_frost === 'number') {
+          isColdHardy = false
+          setColdHardy(false)
+          console.log('Setting coldHardy = false (inferred from weeks_after_last_frost)')
+        }
+      }
+
+      console.log('After cold_hardy logic: isColdHardy =', isColdHardy, ', planting_method =', data.planting_method)
+
+      // Update weeks fields state (these are conditionally rendered so need state)
+      // Check for actual numeric values (handles undefined, null, and 0)
+      if (data.planting_method === 'start_indoors') {
+        // Indoor starting: use weeks_before_last_frost
+        if (typeof data.weeks_before_last_frost === 'number') {
+          console.log('Setting weeksBeforeLastFrost =', data.weeks_before_last_frost, '(start_indoors)')
+          setWeeksBeforeLastFrost(data.weeks_before_last_frost.toString())
+        }
+      } else if (data.planting_method === 'direct_sow') {
+        if (isColdHardy) {
+          // Cold hardy direct sow: use weeks_before_last_frost_outdoor,
+          // but fall back to weeks_before_last_frost if that's what extraction returned
+          if (typeof data.weeks_before_last_frost_outdoor === 'number') {
+            console.log('Setting weeksBeforeLastFrostOutdoor =', data.weeks_before_last_frost_outdoor, '(from weeks_before_last_frost_outdoor)')
+            setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost_outdoor.toString())
+          } else if (typeof data.weeks_before_last_frost === 'number') {
+            // Extraction returned wrong field name, use it anyway
+            console.log('Setting weeksBeforeLastFrostOutdoor =', data.weeks_before_last_frost, '(fallback from weeks_before_last_frost)')
+            setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost.toString())
+          }
+        } else {
+          // Non cold hardy direct sow: use weeks_after_last_frost
+          if (typeof data.weeks_after_last_frost === 'number') {
+            console.log('Setting weeksAfterLastFrost =', data.weeks_after_last_frost, '(non-cold-hardy direct_sow)')
+            setWeeksAfterLastFrost(data.weeks_after_last_frost.toString())
+          }
+        }
+      }
+
       // Update form fields with extracted data
       if (formRef.current) {
         const form = formRef.current
-        if (data.variety_name) (form.elements.namedItem('variety_name') as HTMLInputElement).value = data.variety_name
-        if (data.common_name) (form.elements.namedItem('common_name') as HTMLInputElement).value = data.common_name
-        if (data.company_name) (form.elements.namedItem('seed_company') as HTMLInputElement).value = data.company_name
-        if (data.product_url) (form.elements.namedItem('product_url') as HTMLInputElement).value = data.product_url
-        if (data.days_to_maturity_min) (form.elements.namedItem('days_to_maturity_min') as HTMLInputElement).value = String(data.days_to_maturity_min)
-        if (data.days_to_maturity_max) (form.elements.namedItem('days_to_maturity_max') as HTMLInputElement).value = String(data.days_to_maturity_max)
-        if (data.planting_method) (form.elements.namedItem('planting_method') as HTMLSelectElement).value = data.planting_method
-        if (data.weeks_before_last_frost) (form.elements.namedItem('weeks_before_last_frost') as HTMLInputElement).value = String(data.weeks_before_last_frost)
-        if (data.weeks_after_last_frost) (form.elements.namedItem('weeks_after_last_frost') as HTMLInputElement).value = String(data.weeks_after_last_frost)
-        if (data.cold_hardy !== undefined) (form.elements.namedItem('cold_hardy') as HTMLInputElement).checked = data.cold_hardy
-        if (data.succession_planting !== undefined) (form.elements.namedItem('succession_planting') as HTMLInputElement).checked = data.succession_planting
-        if (data.succession_interval_days) (form.elements.namedItem('succession_interval_days') as HTMLInputElement).value = String(data.succession_interval_days)
+        const setInput = (name: string, value: string | number | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLInputElement | null
+          if (el && value !== undefined) el.value = String(value)
+        }
+        const setSelect = (name: string, value: string | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLSelectElement | null
+          if (el && value) el.value = value
+        }
+        const setCheckbox = (name: string, value: boolean | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLInputElement | null
+          if (el && value !== undefined) el.checked = value
+        }
+
+        // Basic info
+        setInput('variety_name', data.variety_name)
+        setInput('common_name', data.common_name)
+        setInput('seed_company', data.company_name)
+        setInput('product_url', data.product_url)
+
+        // Growing info
+        setInput('days_to_maturity_min', data.days_to_maturity_min)
+        setInput('days_to_maturity_max', data.days_to_maturity_max)
+        setInput('planting_depth_inches', data.planting_depth_inches)
+        setInput('spacing_inches', data.spacing_inches)
+        setInput('row_spacing_inches', data.row_spacing_inches)
+        setSelect('sun_requirement', data.sun_requirement)
+        setSelect('water_requirement', data.water_requirement)
+
+        // Planting schedule - planting_method and weeks fields are handled via state
+        setCheckbox('fall_planting', data.fall_planting)
+
+        // Succession planting - succession_planting is handled via state
+        setInput('succession_interval_days', data.succession_interval_days)
+
+        // Cold stratification - cold_stratification_required is handled via state
+        setInput('cold_stratification_weeks', data.cold_stratification_weeks)
+
+        // Description/notes
+        if (data.description) {
+          const notesEl = form.elements.namedItem('notes') as HTMLTextAreaElement | null
+          if (notesEl && !notesEl.value) notesEl.value = data.description
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during extraction')
@@ -88,22 +208,52 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
 
     const formData = new FormData(e.currentTarget)
 
+    const getInt = (name: string) => {
+      const val = formData.get(name)
+      return val ? parseInt(val as string) : null
+    }
+    const getFloat = (name: string) => {
+      const val = formData.get(name)
+      return val ? parseFloat(val as string) : null
+    }
+    const getString = (name: string) => (formData.get(name) as string) || null
+
     const data: Partial<SeedInsert> = {
+      // Basic info
       variety_name: formData.get('variety_name') as string,
-      common_name: formData.get('common_name') as string || null,
-      seed_company: formData.get('seed_company') as string || null,
-      product_url: formData.get('product_url') as string || null,
-      purchase_year: formData.get('purchase_year') ? parseInt(formData.get('purchase_year') as string) : null,
+      common_name: getString('common_name'),
+      seed_company: getString('seed_company'),
+      product_url: getString('product_url'),
+      image_url: extractedData?.image_url || initialData?.image_url || null,
+      purchase_year: getInt('purchase_year'),
       quantity_packets: parseInt(formData.get('quantity_packets') as string) || 1,
-      notes: formData.get('notes') as string || null,
-      days_to_maturity_min: formData.get('days_to_maturity_min') ? parseInt(formData.get('days_to_maturity_min') as string) : null,
-      days_to_maturity_max: formData.get('days_to_maturity_max') ? parseInt(formData.get('days_to_maturity_max') as string) : null,
-      planting_method: formData.get('planting_method') as 'direct_sow' | 'start_indoors' | 'both' | null || null,
-      weeks_before_last_frost: formData.get('weeks_before_last_frost') ? parseInt(formData.get('weeks_before_last_frost') as string) : null,
-      weeks_after_last_frost: formData.get('weeks_after_last_frost') ? parseInt(formData.get('weeks_after_last_frost') as string) : null,
-      cold_hardy: formData.get('cold_hardy') === 'on',
-      succession_planting: formData.get('succession_planting') === 'on',
-      succession_interval_days: formData.get('succession_interval_days') ? parseInt(formData.get('succession_interval_days') as string) : null,
+      notes: getString('notes'),
+
+      // Growing info
+      days_to_maturity_min: getInt('days_to_maturity_min'),
+      days_to_maturity_max: getInt('days_to_maturity_max'),
+      planting_depth_inches: getFloat('planting_depth_inches'),
+      spacing_inches: getInt('spacing_inches'),
+      row_spacing_inches: getInt('row_spacing_inches'),
+      sun_requirement: getString('sun_requirement'),
+      water_requirement: getString('water_requirement'),
+
+      // Planting schedule
+      planting_method: plantingMethod as 'direct_sow' | 'start_indoors' | null || null,
+      weeks_before_last_frost: plantingMethod === 'start_indoors' && weeksBeforeLastFrost ? parseInt(weeksBeforeLastFrost) : null,
+      weeks_after_last_frost: plantingMethod === 'direct_sow' && !coldHardy && weeksAfterLastFrost ? parseInt(weeksAfterLastFrost) : null,
+      weeks_before_last_frost_outdoor: plantingMethod === 'direct_sow' && coldHardy && weeksBeforeLastFrostOutdoor ? parseInt(weeksBeforeLastFrostOutdoor) : null,
+      cold_hardy: coldHardy,
+      fall_planting: formData.get('fall_planting') === 'on',
+
+      // Succession planting
+      succession_planting: successionPlanting,
+      succession_interval_days: successionPlanting ? getInt('succession_interval_days') : null,
+
+      // Cold stratification
+      cold_stratification_required: coldStratificationRequired,
+      cold_stratification_weeks: coldStratificationRequired ? getInt('cold_stratification_weeks') : null,
+
       ai_extracted: extractedData !== null,
     }
 
@@ -277,10 +427,10 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
           </div>
         </div>
 
-        {/* Planting Information */}
+        {/* Growing Requirements */}
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-medium text-gray-900">Planting Information</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <h2 className="mb-4 text-lg font-medium text-gray-900">Growing Requirements</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label htmlFor="days_to_maturity_min" className="block text-sm font-medium text-gray-700">
                 Days to Maturity (min)
@@ -310,87 +460,261 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
             </div>
 
             <div>
+              <label htmlFor="sun_requirement" className="block text-sm font-medium text-gray-700">
+                Sun Requirement
+              </label>
+              <select
+                id="sun_requirement"
+                name="sun_requirement"
+                defaultValue={initialData?.sun_requirement ?? ''}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">Select...</option>
+                <option value="full_sun">Full Sun</option>
+                <option value="partial_shade">Partial Shade</option>
+                <option value="shade">Shade</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="water_requirement" className="block text-sm font-medium text-gray-700">
+                Water Requirement
+              </label>
+              <select
+                id="water_requirement"
+                name="water_requirement"
+                defaultValue={initialData?.water_requirement ?? ''}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">Select...</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="planting_depth_inches" className="block text-sm font-medium text-gray-700">
+                Planting Depth (inches)
+              </label>
+              <input
+                type="number"
+                id="planting_depth_inches"
+                name="planting_depth_inches"
+                min="0"
+                step="0.125"
+                defaultValue={initialData?.planting_depth_inches ?? ''}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="spacing_inches" className="block text-sm font-medium text-gray-700">
+                Plant Spacing (inches)
+              </label>
+              <input
+                type="number"
+                id="spacing_inches"
+                name="spacing_inches"
+                min="0"
+                defaultValue={initialData?.spacing_inches ?? ''}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="row_spacing_inches" className="block text-sm font-medium text-gray-700">
+                Row Spacing (inches)
+              </label>
+              <input
+                type="number"
+                id="row_spacing_inches"
+                name="row_spacing_inches"
+                min="0"
+                defaultValue={initialData?.row_spacing_inches ?? ''}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Planting Schedule */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="mb-4 text-lg font-medium text-gray-900">Planting Schedule</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
               <label htmlFor="planting_method" className="block text-sm font-medium text-gray-700">
                 Planting Method
               </label>
               <select
                 id="planting_method"
                 name="planting_method"
-                defaultValue={initialData?.planting_method ?? ''}
+                value={plantingMethod}
+                onChange={(e) => setPlantingMethod(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
               >
                 <option value="">Select...</option>
-                <option value="start_indoors">Start Indoors</option>
-                <option value="direct_sow">Direct Sow</option>
-                <option value="both">Both</option>
+                <option value="start_indoors">
+                  Start Indoors{extractedData?.planting_method === 'start_indoors' ? ' (Recommended)' : ''}
+                </option>
+                <option value="direct_sow">
+                  Direct Sow{extractedData?.planting_method === 'direct_sow' ? ' (Recommended)' : ''}
+                </option>
               </select>
             </div>
 
-            <div>
-              <label htmlFor="weeks_before_last_frost" className="block text-sm font-medium text-gray-700">
-                Weeks Before Last Frost (indoor start)
-              </label>
-              <input
-                type="number"
-                id="weeks_before_last_frost"
-                name="weeks_before_last_frost"
-                min="0"
-                defaultValue={initialData?.weeks_before_last_frost ?? ''}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="weeks_after_last_frost" className="block text-sm font-medium text-gray-700">
-                Weeks After Last Frost (direct sow)
-              </label>
-              <input
-                type="number"
-                id="weeks_after_last_frost"
-                name="weeks_after_last_frost"
-                min="0"
-                defaultValue={initialData?.weeks_after_last_frost ?? ''}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="succession_interval_days" className="block text-sm font-medium text-gray-700">
-                Succession Interval (days)
-              </label>
-              <input
-                type="number"
-                id="succession_interval_days"
-                name="succession_interval_days"
-                min="1"
-                defaultValue={initialData?.succession_interval_days ?? ''}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-            </div>
-
-            <div className="flex items-center gap-6 sm:col-span-2">
-              <label className="flex items-center gap-2">
+            {/* Indoor: weeks before last frost */}
+            {plantingMethod === 'start_indoors' && (
+              <div>
+                <label htmlFor="weeks_before_last_frost" className="block text-sm font-medium text-gray-700">
+                  Weeks Before Last Frost
+                </label>
                 <input
-                  type="checkbox"
-                  name="cold_hardy"
-                  defaultChecked={initialData?.cold_hardy ?? false}
-                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  type="number"
+                  id="weeks_before_last_frost"
+                  name="weeks_before_last_frost"
+                  min="0"
+                  value={weeksBeforeLastFrost}
+                  onChange={(e) => setWeeksBeforeLastFrost(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 />
-                <span className="text-sm text-gray-700">Cold Hardy</span>
-              </label>
+              </div>
+            )}
 
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="succession_planting"
-                  defaultChecked={initialData?.succession_planting ?? false}
-                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                />
-                <span className="text-sm text-gray-700">Succession Planting</span>
+            {/* Direct sow options */}
+            {plantingMethod === 'direct_sow' && (
+              <>
+                <div className="flex items-center gap-2 self-end pb-2">
+                  <input
+                    type="checkbox"
+                    id="cold_hardy"
+                    checked={coldHardy}
+                    onChange={(e) => setColdHardy(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  <label htmlFor="cold_hardy" className="text-sm text-gray-700">
+                    Cold Hardy
+                  </label>
+                </div>
+
+                {/* Non cold-hardy: weeks after last frost */}
+                {!coldHardy && (
+                  <div>
+                    <label htmlFor="weeks_after_last_frost" className="block text-sm font-medium text-gray-700">
+                      Weeks After Last Frost
+                    </label>
+                    <input
+                      type="number"
+                      id="weeks_after_last_frost"
+                      name="weeks_after_last_frost"
+                      min="0"
+                      value={weeksAfterLastFrost}
+                      onChange={(e) => setWeeksAfterLastFrost(e.target.value)}
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                  </div>
+                )}
+
+                {/* Cold hardy: weeks before last frost (outdoor) */}
+                {coldHardy && (
+                  <div>
+                    <label htmlFor="weeks_before_last_frost_outdoor" className="block text-sm font-medium text-gray-700">
+                      Weeks Before Last Frost
+                    </label>
+                    <input
+                      type="number"
+                      id="weeks_before_last_frost_outdoor"
+                      name="weeks_before_last_frost_outdoor"
+                      min="0"
+                      value={weeksBeforeLastFrostOutdoor}
+                      onChange={(e) => setWeeksBeforeLastFrostOutdoor(e.target.value)}
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex items-center gap-2 self-end pb-2">
+              <input
+                type="checkbox"
+                id="fall_planting"
+                name="fall_planting"
+                defaultChecked={initialData?.fall_planting ?? false}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <label htmlFor="fall_planting" className="text-sm text-gray-700">
+                Fall Planting
               </label>
             </div>
           </div>
         </div>
+
+        {/* Succession Planting - only show if recommended or user enables it */}
+        {(successionPlanting || extractedData?.succession_planting) && (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Succession Planting</h2>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={successionPlanting}
+                  onChange={(e) => setSuccessionPlanting(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">Enable</span>
+              </label>
+            </div>
+            {successionPlanting && (
+              <div className="max-w-xs">
+                <label htmlFor="succession_interval_days" className="block text-sm font-medium text-gray-700">
+                  Interval Between Plantings (days)
+                </label>
+                <input
+                  type="number"
+                  id="succession_interval_days"
+                  name="succession_interval_days"
+                  min="1"
+                  defaultValue={initialData?.succession_interval_days ?? ''}
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Cold Stratification - only show if required or user enables it */}
+        {(coldStratificationRequired || extractedData?.cold_stratification_required) && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Cold Stratification</h2>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={coldStratificationRequired}
+                  onChange={(e) => setColdStratificationRequired(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">Required</span>
+              </label>
+            </div>
+            {coldStratificationRequired && (
+              <div className="max-w-xs">
+                <label htmlFor="cold_stratification_weeks" className="block text-sm font-medium text-gray-700">
+                  Stratification Period (weeks)
+                </label>
+                <input
+                  type="number"
+                  id="cold_stratification_weeks"
+                  name="cold_stratification_weeks"
+                  min="1"
+                  defaultValue={initialData?.cold_stratification_weeks ?? ''}
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notes */}
         <div className="rounded-lg border border-gray-200 bg-white p-6">

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { SeedForm } from '@/components/seeds/seed-form'
+import type { Seed } from '@/types/database'
 
 interface EditSeedPageProps {
   params: Promise<{ id: string }>
@@ -12,15 +13,17 @@ export default async function EditSeedPage({ params }: EditSeedPageProps) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: seed, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
     .select('*')
     .eq('id', id)
     .single()
 
-  if (error || !seed) {
+  if (error || !data) {
     notFound()
   }
+
+  const seed = data as Seed
 
   return (
     <div>

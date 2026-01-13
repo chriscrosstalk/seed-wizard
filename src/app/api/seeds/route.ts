@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import type { Seed, SeedInsert } from '@/types/database'
 
 // Validation schema for creating/updating seeds
 const seedSchema = z.object({
@@ -8,6 +9,7 @@ const seedSchema = z.object({
   common_name: z.string().optional().nullable(),
   seed_company: z.string().optional().nullable(),
   product_url: z.string().url().optional().nullable().or(z.literal('')),
+  image_url: z.string().url().optional().nullable().or(z.literal('')),
   purchase_year: z.number().int().min(1900).max(2100).optional().nullable(),
   quantity_packets: z.number().int().min(1).default(1),
   notes: z.string().optional().nullable(),
@@ -18,7 +20,7 @@ const seedSchema = z.object({
   row_spacing_inches: z.number().int().min(0).optional().nullable(),
   sun_requirement: z.enum(['full_sun', 'partial_shade', 'shade']).optional().nullable(),
   water_requirement: z.enum(['low', 'medium', 'high']).optional().nullable(),
-  planting_method: z.enum(['direct_sow', 'start_indoors', 'both']).optional().nullable(),
+  planting_method: z.enum(['direct_sow', 'start_indoors']).optional().nullable(),
   weeks_before_last_frost: z.number().int().min(0).optional().nullable(),
   weeks_after_last_frost: z.number().int().min(0).optional().nullable(),
   cold_hardy: z.boolean().default(false),
@@ -34,7 +36,7 @@ const seedSchema = z.object({
 export async function GET() {
   const supabase = await createClient()
 
-  const { data: seeds, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
     .select('*')
     .order('created_at', { ascending: false })
@@ -43,7 +45,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(seeds)
+  return NextResponse.json(data as Seed[])
 }
 
 // POST /api/seeds - Create a new seed
@@ -66,17 +68,18 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Clean empty strings to null for optional URL field
-  const seedData = {
+  // Clean empty strings to null for optional URL fields
+  const seedData: SeedInsert = {
     ...result.data,
     product_url: result.data.product_url || null,
+    image_url: result.data.image_url || null,
     // TODO: Replace with actual user ID from auth
     user_id: '00000000-0000-0000-0000-000000000000',
   }
 
-  const { data: seed, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
-    .insert(seedData)
+    .insert(seedData as never)
     .select()
     .single()
 
@@ -84,5 +87,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(seed, { status: 201 })
+  return NextResponse.json(data as Seed, { status: 201 })
 }

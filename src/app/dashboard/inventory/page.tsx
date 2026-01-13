@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { Plus, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { SeedCard } from '@/components/seeds/seed-card'
+import { SeedList } from '@/components/seeds/seed-list'
+import type { Seed } from '@/types/database'
 
 export default async function InventoryPage() {
   const supabase = await createClient()
 
   // For now, fetch all seeds (will be filtered by user_id once auth is added)
-  const { data: seeds, error } = await supabase
+  const { data, error } = await supabase
     .from('seeds')
     .select('*')
     .order('created_at', { ascending: false })
@@ -16,7 +17,7 @@ export default async function InventoryPage() {
     console.error('Error fetching seeds:', error)
   }
 
-  const seedList = seeds ?? []
+  const seedList = (data as Seed[] | null) ?? []
 
   return (
     <div>
@@ -52,11 +53,7 @@ export default async function InventoryPage() {
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {seedList.map((seed) => (
-            <SeedCard key={seed.id} seed={seed} />
-          ))}
-        </div>
+        <SeedList seeds={seedList} />
       )}
     </div>
   )

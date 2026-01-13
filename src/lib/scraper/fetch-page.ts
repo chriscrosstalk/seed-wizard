@@ -41,9 +41,73 @@ export async function fetchPageContent(url: string): Promise<string> {
 }
 
 /**
+ * Extracts image URLs from HTML before stripping tags
+ */
+function extractImageUrls(html: string): string[] {
+  const images: string[] = []
+
+  // Extract og:image meta tag (most reliable for product images)
+  const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i)
+  if (ogImageMatch) {
+    images.push(ogImageMatch[1])
+  }
+
+  // Extract twitter:image meta tag
+  const twitterImageMatch = html.match(/<meta[^>]*(?:name|property)=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*(?:name|property)=["']twitter:image["'][^>]*>/i)
+  if (twitterImageMatch && !images.includes(twitterImageMatch[1])) {
+    images.push(twitterImageMatch[1])
+  }
+
+  // Extract product images from JSON/data attributes (common in e-commerce sites)
+  // Look for URLs containing 'product' in path with image extensions
+  const productUrlMatches = html.matchAll(/["'](https?:\/\/[^"']*\/(?:images\/)?products?\/[^"']*\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)
+  for (const match of productUrlMatches) {
+    let url = match[1].replace(/&amp;/g, '&')
+    // Prefer larger images
+    if (url.includes('sw=') && !url.includes('sw=800')) {
+      url = url.replace(/sw=\d+/, 'sw=800').replace(/sh=\d+/, 'sh=800')
+    }
+    if (!images.includes(url)) {
+      images.push(url)
+      if (images.length >= 3) break
+    }
+  }
+
+  // Extract main product images from img tags
+  const imgMatches = html.matchAll(/<img[^>]*(?:src|data-src)=["']([^"']+)["'][^>]*>/gi)
+  for (const match of imgMatches) {
+    const src = match[1]
+    // Filter for likely product images (skip icons, logos, placeholders)
+    if (src &&
+        !src.includes('logo') &&
+        !src.includes('icon') &&
+        !src.includes('placeholder') &&
+        !src.includes('loading') &&
+        !src.includes('spinner') &&
+        !src.includes('badge') &&
+        !src.includes('1x1') &&
+        !src.includes('nav-') &&
+        !src.endsWith('.svg') &&
+        (src.includes('product') || src.includes('seed') || src.includes('cdn') || src.includes('upload'))) {
+      if (!images.includes(src)) {
+        images.push(src)
+      }
+    }
+    if (images.length >= 5) break
+  }
+
+  return images
+}
+
+/**
  * Strips unnecessary HTML and extracts readable text content
  */
 function cleanHtmlContent(html: string): string {
+  // Extract image URLs before stripping HTML
+  const imageUrls = extractImageUrls(html)
+
   let content = html
 
   // Remove script and style tags with their content
@@ -96,6 +160,11 @@ function cleanHtmlContent(html: string): string {
       content = content.substring(0, lastPeriod + 1)
     }
     content += '\n\n[Content truncated]'
+  }
+
+  // Append extracted image URLs so Claude can use them
+  if (imageUrls.length > 0) {
+    content += '\n\n[Product Images]\n' + imageUrls.map(url => `- ${url}`).join('\n')
   }
 
   return content
