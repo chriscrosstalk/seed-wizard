@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { Calendar, MapPin, Sprout } from 'lucide-react'
+import { MapPin, Sprout } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { CalendarList } from '@/components/calendar/calendar-list'
 import type { Profile, Seed } from '@/types/database'
 
 export default async function CalendarPage() {
@@ -21,41 +22,10 @@ export default async function CalendarPage() {
   const { data: seedsData } = await supabase
     .from('seeds')
     .select('*')
-  const seeds = seedsData as Seed[] | null
+  const seeds = (seedsData as Seed[] | null) ?? []
 
   const hasLocation = profile?.last_frost_date && profile?.first_frost_date
-  const seedCount = seeds?.length ?? 0
-
-  // Helper to calculate planting date for a seed
-  function getPlantingDate(seed: Seed, lastFrost: Date): { date: Date; eventType: string } | null {
-    if (seed.planting_method === 'start_indoors') {
-      if (seed.weeks_before_last_frost) {
-        const plantDate = new Date(lastFrost)
-        plantDate.setDate(plantDate.getDate() - seed.weeks_before_last_frost * 7)
-        return { date: plantDate, eventType: 'Start indoors' }
-      }
-    } else if (seed.planting_method === 'direct_sow') {
-      if (seed.cold_hardy && seed.weeks_before_last_frost_outdoor) {
-        const plantDate = new Date(lastFrost)
-        plantDate.setDate(plantDate.getDate() - seed.weeks_before_last_frost_outdoor * 7)
-        return { date: plantDate, eventType: 'Direct sow (cold hardy)' }
-      } else if (!seed.cold_hardy && seed.weeks_after_last_frost != null) {
-        const plantDate = new Date(lastFrost)
-        plantDate.setDate(plantDate.getDate() + seed.weeks_after_last_frost * 7)
-        return { date: plantDate, eventType: 'Direct sow' }
-      }
-    }
-    return null
-  }
-
-  // Calculate planting info and sort by date
-  const lastFrost = hasLocation ? new Date(profile.last_frost_date!) : null
-  const sortedSeeds = lastFrost && seeds
-    ? seeds
-        .map(seed => ({ seed, planting: getPlantingDate(seed, lastFrost) }))
-        .filter((item): item is { seed: Seed; planting: { date: Date; eventType: string } } => item.planting !== null)
-        .sort((a, b) => a.planting.date.getTime() - b.planting.date.getTime())
-    : []
+  const seedCount = seeds.length
 
   return (
     <div>
@@ -108,48 +78,7 @@ export default async function CalendarPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="flex items-center gap-2 font-medium text-gray-900">
-                <Calendar className="h-5 w-5 text-green-600" />
-                Upcoming Planting Events
-              </h2>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {sortedSeeds.map(({ seed, planting }) => (
-                <div key={seed.id} className="flex items-center justify-between px-6 py-4">
-                  <div>
-                    <p className="font-medium text-gray-900">{seed.variety_name}</p>
-                    <p className="text-sm text-gray-500">
-                      {seed.common_name && `${seed.common_name} • `}
-                      {planting.eventType}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-green-600">
-                      {planting.date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {seed.days_to_maturity_min && `${seed.days_to_maturity_min} days to harvest`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {sortedSeeds.length === 0 && (
-                <div className="px-6 py-8 text-center text-gray-500">
-                  <p>No planting dates available.</p>
-                  <p className="mt-1 text-sm">
-                    Add planting method and timing info to your seeds to see calendar events.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          <CalendarList seeds={seeds} lastFrostDate={profile.last_frost_date!} />
         </div>
       )}
     </div>
