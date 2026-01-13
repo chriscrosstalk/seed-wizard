@@ -338,9 +338,23 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
             </button>
           </div>
           {extractedData && (
-            <p className="mt-2 text-sm text-green-700">
-              Data extracted successfully. Review and edit below before saving.
-            </p>
+            <div className="mt-4">
+              <p className="text-sm text-green-700">
+                Data extracted successfully. Review and edit below before saving.
+              </p>
+              {extractedData.image_url && (
+                <div className="mt-3 flex items-start gap-3">
+                  <img
+                    src={extractedData.image_url.replace(/^http:\/\//i, 'https://')}
+                    alt="Product preview"
+                    className="h-20 w-20 rounded-md border border-blue-200 object-cover"
+                  />
+                  <div className="text-xs text-blue-600">
+                    Product image will be saved with seed
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
