@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { fetchPageContent } from '@/lib/scraper/fetch-page'
 import { extractSeedData } from '@/lib/claude/extract-seed-data'
-import type { Seed } from '@/types/database'
+
+type SeedForImageFix = {
+  id: string
+  variety_name: string
+  product_url: string | null
+  image_url: string | null
+}
 
 // POST /api/seeds/fix-images - Re-extract image URLs for seeds missing them
 export async function POST() {
@@ -12,6 +18,7 @@ export async function POST() {
   const { data: allSeeds, error: fetchError } = await supabase
     .from('seeds')
     .select('id, variety_name, product_url, image_url')
+    .returns<SeedForImageFix[]>()
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
@@ -31,11 +38,7 @@ export async function POST() {
     needsFix: s.product_url && (!s.image_url || s.image_url.trim() === '')
   }))
 
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 })
-  }
-
-  const seeds = affectedSeeds as Seed[]
+  const seeds = affectedSeeds
 
   if (seeds.length === 0) {
     return NextResponse.json({ message: 'No seeds need fixing', fixed: 0, debug: debugInfo })
@@ -69,7 +72,7 @@ export async function POST() {
       // Update just the image_url
       const { error: updateError } = await supabase
         .from('seeds')
-        .update({ image_url: extractedData.image_url })
+        .update({ image_url: extractedData.image_url } as never)
         .eq('id', seed.id)
 
       if (updateError) {

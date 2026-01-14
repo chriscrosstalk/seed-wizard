@@ -2,7 +2,7 @@
  * Fetches and cleans HTML content from a seed company product page
  */
 
-const USER_AGENT = 'Mozilla/5.0 (compatible; SeedWizard/1.0; +https://seedwizard.app)'
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 const MAX_CONTENT_LENGTH = 15000 // ~15k chars to stay within token limits
 
 export async function fetchPageContent(url: string): Promise<string> {
@@ -21,8 +21,16 @@ export async function fetchPageContent(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
       'User-Agent': USER_AGENT,
-      'Accept': 'text/html,application/xhtml+xml',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0',
     },
     redirect: 'follow',
   })
@@ -103,8 +111,9 @@ function extractImageUrls(html: string): string[] {
 
 /**
  * Strips unnecessary HTML and extracts readable text content
+ * Exported for use when user pastes HTML directly (for sites with bot protection)
  */
-function cleanHtmlContent(html: string): string {
+export function cleanHtmlContent(html: string): string {
   // Extract image URLs before stripping HTML
   const imageUrls = extractImageUrls(html)
 

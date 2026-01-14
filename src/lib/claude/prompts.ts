@@ -3,6 +3,13 @@ import type { Tool } from '@anthropic-ai/sdk/resources/messages'
 export const EXTRACTION_SYSTEM_PROMPT = `You are a seed packet information extractor. Extract planting and growing
 information from seed company product pages.
 
+FIRST: Determine if this is actually a seed/plant product page. Set is_seed_product_page to true ONLY if the page
+is selling seeds, plants, or bulbs with planting information. Set to false for:
+- General articles or blog posts about gardening
+- News sites, search engines, social media
+- Non-gardening e-commerce (electronics, clothing, etc.)
+- Garden tools, fertilizers, or other non-plant products
+
 IMPORTANT GUIDELINES:
 1. Extract ONLY information explicitly stated on the page
 2. Do not make assumptions or fill in default values
@@ -33,6 +40,10 @@ export const SEED_EXTRACTION_TOOL: Tool = {
   input_schema: {
     type: 'object' as const,
     properties: {
+      is_seed_product_page: {
+        type: 'boolean',
+        description: 'True if this page is selling seeds/plants/bulbs with planting info. False for non-seed pages, articles, tools, etc.'
+      },
       variety_name: {
         type: 'string',
         description: 'The specific variety name (e.g., "Brandywine", "Black Krim")'
@@ -125,12 +136,13 @@ export const SEED_EXTRACTION_TOOL: Tool = {
         description: 'URL to the main product image (seed packet or plant photo)'
       }
     },
-    required: ['variety_name']
+    required: ['is_seed_product_page']
   }
 }
 
 export interface ExtractedSeedData {
-  variety_name: string
+  is_seed_product_page: boolean
+  variety_name?: string
   common_name?: string
   company_name?: string
   days_to_maturity_min?: number

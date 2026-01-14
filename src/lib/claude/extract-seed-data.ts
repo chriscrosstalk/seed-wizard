@@ -3,7 +3,7 @@ import { EXTRACTION_SYSTEM_PROMPT, SEED_EXTRACTION_TOOL, type ExtractedSeedData 
 
 export async function extractSeedData(
   pageContent: string,
-  sourceUrl: string
+  sourceUrl?: string
 ): Promise<ExtractedSeedData> {
   const client = getAnthropicClient()
 
@@ -20,11 +20,11 @@ export async function extractSeedData(
 <webpage_content>
 ${pageContent}
 </webpage_content>
-
+${sourceUrl ? `
 <source_url>
 ${sourceUrl}
 </source_url>
-
+` : ''}
 Extract the seed planting information from this product page and use the extract_seed_info tool.`
       }
     ]

@@ -45,6 +45,8 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
   const [importUrl, setImportUrl] = useState('')
+  const [showHtmlPaste, setShowHtmlPaste] = useState(false)
+  const [htmlContent, setHtmlContent] = useState('')
 
   // State for dynamic form fields
   const [plantingMethod, setPlantingMethod] = useState<string>(initialData?.planting_method ?? '')
@@ -98,6 +100,7 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
 
     setIsExtracting(true)
     setError(null)
+    setShowHtmlPaste(false)
 
     try {
       const response = await fetch('/api/extract', {
@@ -109,6 +112,12 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
       const data = await response.json()
 
       if (!response.ok) {
+        // Check if this is a blocked site that supports HTML paste
+        if (data.blocked && data.supportsHtmlPaste) {
+          setShowHtmlPaste(true)
+          setError(`${data.error} You can paste the page source below as a workaround.`)
+          return
+        }
         throw new Error(data.error || 'Failed to extract seed data')
       }
 
@@ -206,6 +215,121 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
         setInput('cold_stratification_weeks', data.cold_stratification_weeks)
 
         // Description/notes
+        if (data.description) {
+          const notesEl = form.elements.namedItem('notes') as HTMLTextAreaElement | null
+          if (notesEl && !notesEl.value) notesEl.value = data.description
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during extraction')
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  const handleImportFromHtml = async () => {
+    if (!htmlContent || htmlContent.length < 100) {
+      setError('Please paste the full HTML source from the page')
+      return
+    }
+
+    setIsExtracting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: htmlContent, url: importUrl }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to extract seed data')
+      }
+
+      setExtractedData(data)
+      setShowHtmlPaste(false)
+      setHtmlContent('')
+
+      // Update state for dynamic fields
+      if (data.planting_method) setPlantingMethod(data.planting_method)
+      if (data.succession_planting !== undefined) setSuccessionPlanting(!!data.succession_planting)
+      if (data.cold_stratification_required !== undefined) setColdStratificationRequired(!!data.cold_stratification_required)
+
+      // Determine cold_hardy
+      let isColdHardy = coldHardy
+      if (data.cold_hardy === true || data.cold_hardy === 'true') {
+        isColdHardy = true
+        setColdHardy(true)
+      } else if (data.cold_hardy === false || data.cold_hardy === 'false') {
+        isColdHardy = false
+        setColdHardy(false)
+      } else if (data.planting_method === 'direct_sow') {
+        if (typeof data.weeks_before_last_frost_outdoor === 'number') {
+          isColdHardy = true
+          setColdHardy(true)
+        } else if (typeof data.weeks_before_last_frost === 'number' && typeof data.weeks_after_last_frost !== 'number') {
+          isColdHardy = true
+          setColdHardy(true)
+        } else if (typeof data.weeks_after_last_frost === 'number') {
+          isColdHardy = false
+          setColdHardy(false)
+        }
+      }
+
+      // Update weeks fields state
+      if (data.planting_method === 'start_indoors') {
+        if (typeof data.weeks_before_last_frost === 'number') {
+          setWeeksBeforeLastFrost(data.weeks_before_last_frost.toString())
+        }
+      } else if (data.planting_method === 'direct_sow') {
+        if (isColdHardy) {
+          if (typeof data.weeks_before_last_frost_outdoor === 'number') {
+            setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost_outdoor.toString())
+          } else if (typeof data.weeks_before_last_frost === 'number') {
+            setWeeksBeforeLastFrostOutdoor(data.weeks_before_last_frost.toString())
+          }
+        } else {
+          if (typeof data.weeks_after_last_frost === 'number') {
+            setWeeksAfterLastFrost(data.weeks_after_last_frost.toString())
+          }
+        }
+      }
+
+      // Update form fields with extracted data
+      if (formRef.current) {
+        const form = formRef.current
+        const setInput = (name: string, value: string | number | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLInputElement | null
+          if (el && value !== undefined) el.value = String(value)
+        }
+        const setSelect = (name: string, value: string | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLSelectElement | null
+          if (el && value) el.value = value
+        }
+        const setCheckbox = (name: string, value: boolean | undefined) => {
+          const el = form.elements.namedItem(name) as HTMLInputElement | null
+          if (el && value !== undefined) el.checked = value
+        }
+
+        setInput('variety_name', data.variety_name)
+        setInput('common_name', data.common_name)
+        if (data.common_name) setCommonName(data.common_name)
+        setInput('seed_company', data.company_name)
+        setInput('product_url', data.product_url)
+        setInput('days_to_maturity_min', data.days_to_maturity_min)
+        setInput('days_to_maturity_max', data.days_to_maturity_max)
+        setInput('planting_depth_inches', data.planting_depth_inches)
+        setInput('spacing_inches', data.spacing_inches)
+        setInput('row_spacing_inches', data.row_spacing_inches)
+        setSelect('sun_requirement', data.sun_requirement)
+        setSelect('water_requirement', data.water_requirement)
+        setCheckbox('fall_planting', data.fall_planting)
+        setInput('succession_interval_days', data.succession_interval_days)
+        setInput('cold_stratification_weeks', data.cold_stratification_weeks)
+
         if (data.description) {
           const notesEl = form.elements.namedItem('notes') as HTMLTextAreaElement | null
           if (notesEl && !notesEl.value) notesEl.value = data.description
@@ -337,6 +461,47 @@ export function SeedForm({ initialData, mode }: SeedFormProps) {
               )}
             </button>
           </div>
+          {error && !extractedData && (
+            <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {showHtmlPaste && (
+            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+              <h3 className="text-sm font-medium text-amber-900">
+                Paste Page Source
+              </h3>
+              <p className="mt-1 text-xs text-amber-700">
+                Open the product page in your browser, right-click and select &quot;View Page Source&quot;,
+                then copy all the HTML and paste it below.
+              </p>
+              <textarea
+                value={htmlContent}
+                onChange={(e) => setHtmlContent(e.target.value)}
+                placeholder="Paste the full HTML source here..."
+                rows={6}
+                className="mt-3 block w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-mono shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+              <button
+                type="button"
+                onClick={handleImportFromHtml}
+                disabled={isExtracting || !htmlContent}
+                className="mt-3 flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isExtracting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Extract from HTML
+                  </>
+                )}
+              </button>
+            </div>
+          )}
           {extractedData && (
             <div className="mt-4">
               <p className="text-sm text-green-700">
