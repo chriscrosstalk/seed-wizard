@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Package, Calendar, Settings, Plus } from 'lucide-react'
+import { Package, Calendar, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { PlantableNowWidget } from '@/components/dashboard/plantable-now-widget'
 import type { Profile, Seed } from '@/types/database'
@@ -78,23 +78,6 @@ export default async function DashboardPage() {
           </div>
         </Link>
 
-        {/* Settings Card */}
-        <Link
-          href="/dashboard/settings"
-          className="group rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-        >
-          <div className="flex items-center gap-4">
-            <div className="rounded-full bg-gray-100 p-3">
-              <Settings className="h-6 w-6 text-gray-600" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-900 group-hover:text-gray-700">
-                Settings
-              </h2>
-              <p className="text-sm text-gray-500">Set your location and zone</p>
-            </div>
-          </div>
-        </Link>
       </div>
 
       {/* Plantable Now Widget */}

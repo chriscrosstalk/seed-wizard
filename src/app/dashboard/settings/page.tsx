@@ -1,11 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MapPin, Loader2, Check } from 'lucide-react'
+
+interface ProfileData {
+  zip_code: string | null
+  hardiness_zone: string | null
+  last_frost_date: string | null
+  first_frost_date: string | null
+}
 
 export default function SettingsPage() {
   const [zipCode, setZipCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [locationData, setLocationData] = useState<{
     hardiness_zone: string | null
     last_frost_date: string | null
@@ -13,6 +21,34 @@ export default function SettingsPage() {
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // Load existing profile on mount
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const response = await fetch('/api/profile')
+        if (response.ok) {
+          const data: ProfileData = await response.json()
+          if (data.zip_code) {
+            setZipCode(data.zip_code)
+          }
+          if (data.hardiness_zone || data.last_frost_date || data.first_frost_date) {
+            setLocationData({
+              hardiness_zone: data.hardiness_zone,
+              last_frost_date: data.last_frost_date,
+              first_frost_date: data.first_frost_date,
+            })
+            setSaved(true)
+          }
+        }
+      } catch {
+        // Profile not found or error, start fresh
+      } finally {
+        setIsLoadingProfile(false)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const handleLookup = async () => {
     if (!zipCode || zipCode.length < 5) {
@@ -78,6 +114,14 @@ export default function SettingsPage() {
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
   }
 
+  if (isLoadingProfile) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
@@ -104,7 +148,10 @@ export default function SettingsPage() {
                 type="text"
                 id="zip_code"
                 value={zipCode}
-                onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                onChange={(e) => {
+                  setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))
+                  setSaved(false)
+                }}
                 placeholder="12345"
                 maxLength={5}
                 className="block w-32 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -128,9 +175,11 @@ export default function SettingsPage() {
 
           {locationData && (
             <div className="mt-6 space-y-4">
-              <div className="rounded-md bg-green-50 p-4">
-                <h3 className="font-medium text-green-800">Location Found</h3>
-                <dl className="mt-2 space-y-1 text-sm text-green-700">
+              <div className={`rounded-md p-4 ${saved ? 'bg-gray-50' : 'bg-green-50'}`}>
+                <h3 className={`font-medium ${saved ? 'text-gray-800' : 'text-green-800'}`}>
+                  {saved ? 'Current Location' : 'Location Found'}
+                </h3>
+                <dl className={`mt-2 space-y-1 text-sm ${saved ? 'text-gray-700' : 'text-green-700'}`}>
                   <div className="flex justify-between">
                     <dt>Hardiness Zone:</dt>
                     <dd className="font-medium">{locationData.hardiness_zone || 'Unknown'}</dd>
@@ -146,25 +195,29 @@ export default function SettingsPage() {
                 </dl>
               </div>
 
-              <button
-                onClick={handleSave}
-                disabled={isLoading || saved}
-                className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
-              >
-                {saved ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Saved
-                  </>
-                ) : isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Location'
-                )}
-              </button>
+              {!saved && (
+                <button
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Location'
+                  )}
+                </button>
+              )}
+
+              {saved && (
+                <p className="flex items-center justify-center gap-1 text-sm text-gray-500">
+                  <Check className="h-4 w-4 text-green-600" />
+                  Location saved
+                </p>
+              )}
             </div>
           )}
         </div>
