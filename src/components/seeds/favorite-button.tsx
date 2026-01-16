@@ -46,14 +46,18 @@ export function FavoriteButton({ seedId, initialValue, onToggle }: FavoriteButto
     <button
       onClick={handleClick}
       disabled={isUpdating}
-      className={`pointer-events-auto rounded p-1 transition-colors ${
-        isFavorite
-          ? 'text-yellow-500 hover:bg-yellow-50'
-          : 'text-gray-400 hover:bg-gray-50 hover:text-yellow-500'
-      } ${isUpdating ? 'opacity-50' : ''}`}
+      className={`
+        pointer-events-auto rounded-full p-2 transition-all duration-200
+        ${isFavorite
+          ? 'bg-[var(--color-terracotta-light)]/80 text-[var(--color-terracotta-dark)]'
+          : 'bg-[var(--color-warm-white)]/90 text-[var(--color-branch)] hover:text-[var(--color-terracotta)]'
+        }
+        ${isUpdating ? 'opacity-50 cursor-wait' : 'hover:scale-110'}
+        backdrop-blur-sm
+      `}
       title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
     >
-      <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+      <Star className={`h-4 w-4 transition-transform ${isFavorite ? 'fill-current scale-110' : ''}`} />
     </button>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Sprout } from 'lucide-react'
 
 interface PlantedCheckboxProps {
   seedId: string
@@ -43,24 +43,35 @@ export function PlantedCheckbox({ seedId, initialValue, onToggle }: PlantedCheck
   }
 
   return (
-    <label
-      className={`pointer-events-auto inline-flex items-center gap-1.5 cursor-pointer select-none ${
-        isUpdating ? 'opacity-50' : ''
-      }`}
+    <button
       onClick={handleClick}
+      disabled={isUpdating}
+      className={`
+        pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5
+        text-xs font-medium transition-all duration-200
+        ${isPlanted
+          ? 'bg-[var(--color-sage-light)]/60 text-[var(--color-sage-dark)] border border-[var(--color-sage)]'
+          : 'bg-transparent text-[var(--color-branch)] border border-[var(--color-parchment)] hover:border-[var(--color-sage-light)] hover:text-[var(--color-sage-dark)]'
+        }
+        ${isUpdating ? 'opacity-50 cursor-wait' : ''}
+      `}
     >
       <span
-        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-          isPlanted
-            ? 'border-green-600 bg-green-600 text-white'
-            : 'border-gray-300 bg-white hover:border-green-400'
-        }`}
+        className={`
+          flex h-4 w-4 items-center justify-center rounded-full transition-all duration-200
+          ${isPlanted
+            ? 'bg-[var(--color-sage)] text-white'
+            : 'border border-current'
+          }
+        `}
       >
-        {isPlanted && <Check className="h-3 w-3" />}
+        {isPlanted ? (
+          <Check className="h-3 w-3" />
+        ) : (
+          <Sprout className="h-2.5 w-2.5 opacity-50" />
+        )}
       </span>
-      <span className={`text-xs ${isPlanted ? 'text-green-700' : 'text-gray-500'}`}>
-        Planted
-      </span>
-    </label>
+      <span>{isPlanted ? 'Planted' : 'Mark planted'}</span>
+    </button>
   )
 }
