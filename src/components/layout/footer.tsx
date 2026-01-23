@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { parseLocalDate } from '@/lib/planting-window'
 import packageJson from '../../../package.json'
 
 interface ProfileData {
@@ -20,7 +21,7 @@ export function Footer() {
 
   const formatFrostDate = (dateStr: string | null) => {
     if (!dateStr) return null
-    const date = new Date(dateStr)
+    const date = parseLocalDate(dateStr)
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 

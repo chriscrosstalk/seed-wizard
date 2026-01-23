@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Sprout, Home, Sun, ArrowRight } from 'lucide-react'
-import { getSeedsPlantableNow, type PlantableResult } from '@/lib/planting-window'
+import { getSeedsPlantableNow, parseLocalDate, type PlantableResult } from '@/lib/planting-window'
 import { findPlantDefault } from '@/lib/plant-defaults'
 import type { Seed, Profile } from '@/types/database'
 
@@ -76,7 +76,7 @@ export function PlantableNowWidget({ seeds, profile, maxItems = 5 }: PlantableNo
     })
   }
 
-  const lastFrostDate = profile.last_frost_date ? new Date(profile.last_frost_date) : null
+  const lastFrostDate = profile.last_frost_date ? parseLocalDate(profile.last_frost_date) : null
 
   const plantableSeeds = useMemo(() => {
     if (!lastFrostDate) return []

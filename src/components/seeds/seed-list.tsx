@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { SeedCard } from './seed-card'
 import { findPlantDefault } from '@/lib/plant-defaults'
-import { getSeedsPlantableNow } from '@/lib/planting-window'
+import { getSeedsPlantableNow, parseLocalDate } from '@/lib/planting-window'
 import type { Seed } from '@/types/database'
 
 interface SeedListProps {
@@ -222,7 +222,7 @@ export function SeedList({ seeds: initialSeeds, lastFrostDate }: SeedListProps) 
   // Calculate which seeds are plantable now
   const plantableSeedIds = useMemo(() => {
     if (!lastFrostDate) return new Set<string>()
-    const plantableResults = getSeedsPlantableNow(seeds, new Date(lastFrostDate), 4)
+    const plantableResults = getSeedsPlantableNow(seeds, parseLocalDate(lastFrostDate), 4)
     return new Set(plantableResults.map(r => r.seed.id))
   }, [seeds, lastFrostDate])
 
