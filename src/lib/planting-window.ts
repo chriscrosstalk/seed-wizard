@@ -1,5 +1,15 @@
 import type { Seed } from '@/types/database'
 
+/**
+ * Parse a date string (YYYY-MM-DD) as a local date.
+ * Using new Date("2026-03-31") parses as UTC, which causes timezone issues.
+ * This function ensures the date is interpreted as local midnight.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day) // month is 0-indexed
+}
+
 export interface PlantableResult {
   seed: Seed
   plantingDate: Date

@@ -52,6 +52,21 @@ export async function GET(request: NextRequest) {
   })
 }
 
+// Helper to format frost date with the appropriate year
+// Last frost (spring): use current year if we haven't passed it yet, otherwise next year
+// First frost (fall): use current year if we haven't passed it yet, otherwise next year
+function formatFrostDate(month: number, day: number, isLastFrost: boolean): string {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const testDate = new Date(currentYear, month - 1, day)
+
+  // For last frost (spring), if we're past it this year, use next year
+  // For first frost (fall), if we're past it this year, use next year
+  const year = testDate < now ? currentYear + 1 : currentYear
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 // Simplified frost date estimation based on ZIP prefix regions
 // This provides rough approximations for the continental US
 function estimateFrostData(zipPrefix: number): {
@@ -63,8 +78,8 @@ function estimateFrostData(zipPrefix: number): {
   if ((zipPrefix >= 10 && zipPrefix <= 69) || (zipPrefix >= 100 && zipPrefix <= 149)) {
     return {
       hardiness_zone: '6a',
-      last_frost_date: '2000-05-01', // May 1
-      first_frost_date: '2000-10-15', // Oct 15
+      last_frost_date: formatFrostDate(5, 1, true), // May 1
+      first_frost_date: formatFrostDate(10, 15, false), // Oct 15
     }
   }
 
@@ -72,8 +87,8 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 200 && zipPrefix <= 349) {
     return {
       hardiness_zone: '7b',
-      last_frost_date: '2000-04-01', // Apr 1
-      first_frost_date: '2000-11-01', // Nov 1
+      last_frost_date: formatFrostDate(4, 1, true), // Apr 1
+      first_frost_date: formatFrostDate(11, 1, false), // Nov 1
     }
   }
 
@@ -81,8 +96,8 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 320 && zipPrefix <= 349) {
     return {
       hardiness_zone: '9a',
-      last_frost_date: '2000-02-15', // Feb 15
-      first_frost_date: '2000-12-15', // Dec 15
+      last_frost_date: formatFrostDate(2, 15, true), // Feb 15
+      first_frost_date: formatFrostDate(12, 15, false), // Dec 15
     }
   }
 
@@ -90,8 +105,8 @@ function estimateFrostData(zipPrefix: number): {
   if ((zipPrefix >= 400 && zipPrefix <= 499) || (zipPrefix >= 500 && zipPrefix <= 629)) {
     return {
       hardiness_zone: '5b',
-      last_frost_date: '2000-05-10', // May 10
-      first_frost_date: '2000-10-01', // Oct 1
+      last_frost_date: formatFrostDate(5, 10, true), // May 10
+      first_frost_date: formatFrostDate(10, 1, false), // Oct 1
     }
   }
 
@@ -99,8 +114,8 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 700 && zipPrefix <= 799) {
     return {
       hardiness_zone: '8a',
-      last_frost_date: '2000-03-15', // Mar 15
-      first_frost_date: '2000-11-15', // Nov 15
+      last_frost_date: formatFrostDate(3, 15, true), // Mar 15
+      first_frost_date: formatFrostDate(11, 15, false), // Nov 15
     }
   }
 
@@ -108,8 +123,8 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 800 && zipPrefix <= 899) {
     return {
       hardiness_zone: '5a',
-      last_frost_date: '2000-05-15', // May 15
-      first_frost_date: '2000-09-30', // Sep 30
+      last_frost_date: formatFrostDate(5, 15, true), // May 15
+      first_frost_date: formatFrostDate(9, 30, false), // Sep 30
     }
   }
 
@@ -117,8 +132,8 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 970 && zipPrefix <= 994) {
     return {
       hardiness_zone: '8b',
-      last_frost_date: '2000-04-01', // Apr 1
-      first_frost_date: '2000-11-01', // Nov 1
+      last_frost_date: formatFrostDate(4, 1, true), // Apr 1
+      first_frost_date: formatFrostDate(11, 1, false), // Nov 1
     }
   }
 
@@ -126,15 +141,15 @@ function estimateFrostData(zipPrefix: number): {
   if (zipPrefix >= 900 && zipPrefix <= 961) {
     return {
       hardiness_zone: '9b',
-      last_frost_date: '2000-02-01', // Feb 1
-      first_frost_date: '2000-12-15', // Dec 15
+      last_frost_date: formatFrostDate(2, 1, true), // Feb 1
+      first_frost_date: formatFrostDate(12, 15, false), // Dec 15
     }
   }
 
   // Default fallback (Zone 6)
   return {
     hardiness_zone: '6a',
-    last_frost_date: '2000-04-25', // Apr 25
-    first_frost_date: '2000-10-20', // Oct 20
+    last_frost_date: formatFrostDate(4, 25, true), // Apr 25
+    first_frost_date: formatFrostDate(10, 20, false), // Oct 20
   }
 }

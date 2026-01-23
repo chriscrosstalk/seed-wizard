@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Calendar, Sprout, Home, Sun } from 'lucide-react'
 import { findPlantDefault } from '@/lib/plant-defaults'
+import { parseLocalDate, getSeedsPlantableNow } from '@/lib/planting-window'
 import type { Seed } from '@/types/database'
 
 interface CalendarListProps {
@@ -136,17 +137,33 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
     })
   }
 
-  const lastFrost = new Date(lastFrostDate)
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // Calculate the 4-week window for "plantable now" filter
-  const windowEnd = new Date(today)
-  windowEnd.setDate(windowEnd.getDate() + 4 * 7)
-
   // Calculate planting info, add category, filter, and sort by date
   const sortedSeeds = useMemo(() => {
+    const lastFrost = parseLocalDate(lastFrostDate)
+
+    // If plantable now filter is enabled, use the shared filtering function
+    if (plantableNow) {
+      const plantableResults = getSeedsPlantableNow(seeds, lastFrost, 4)
+      return plantableResults
+        .filter(item => {
+          const category = getCategory(item.seed)
+          if (!categoryFilters[category]) return false
+          if (hidePlanted && item.seed.is_planted) return false
+          if (!showIndoor && item.eventType === 'indoor') return false
+          if (!showOutdoor && item.eventType === 'outdoor') return false
+          return true
+        })
+        .map(item => ({
+          seed: item.seed,
+          planting: {
+            date: item.plantingDate,
+            eventType: item.eventType === 'indoor' ? 'Start indoors' : 'Direct sow',
+          },
+          category: getCategory(item.seed),
+        }))
+    }
+
+    // Standard view: show all seeds with planting info
     return seeds
       .map(seed => ({
         seed,
@@ -157,26 +174,10 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
         if (item.planting === null) return false
         if (!categoryFilters[item.category]) return false
         if (hidePlanted && item.seed.is_planted) return false
-
-        // Plantable now filter: within 4-week window
-        if (plantableNow) {
-          const plantingDate = new Date(item.planting.date)
-          plantingDate.setHours(0, 0, 0, 0)
-          const plantingWindowEnd = new Date(plantingDate)
-          plantingWindowEnd.setDate(plantingWindowEnd.getDate() + 4 * 7)
-          // Only show if within window
-          if (!(plantingWindowEnd >= today && plantingDate <= windowEnd)) return false
-
-          // Indoor/outdoor filter (only applies when plantable now is enabled)
-          const isIndoor = item.planting.eventType === 'Start indoors'
-          if (isIndoor && !showIndoor) return false
-          if (!isIndoor && !showOutdoor) return false
-        }
-
         return true
       })
       .sort((a, b) => a.planting.date.getTime() - b.planting.date.getTime())
-  }, [seeds, lastFrost, categoryFilters, hidePlanted, plantableNow, showIndoor, showOutdoor, today, windowEnd])
+  }, [seeds, lastFrostDate, categoryFilters, hidePlanted, plantableNow, showIndoor, showOutdoor])
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
