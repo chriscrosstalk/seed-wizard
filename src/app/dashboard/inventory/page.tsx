@@ -1,24 +1,31 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { Plus, Leaf, Sparkles } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase } from '@/lib/db'
+import { profiles, seeds } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { SeedList } from '@/components/seeds/seed-list'
 import type { Seed, Profile } from '@/types/database'
 
+// Initialize database
+initializeDatabase()
+
 export default async function InventoryPage() {
-  const supabase = await createClient()
+  // TODO: Get actual user ID from auth
+  const userId = '00000000-0000-0000-0000-000000000000'
 
   // Fetch seeds and profile in parallel
-  const [seedsResult, profileResult] = await Promise.all([
-    supabase.from('seeds').select('*').order('created_at', { ascending: false }),
-    supabase.from('profiles').select('*').single(),
+  const [seedsData, profileResult] = await Promise.all([
+    db.select().from(seeds).orderBy(desc(seeds.created_at)),
+    db.select().from(profiles).where(eq(profiles.id, userId)),
   ])
 
-  if (seedsResult.error) {
-    console.error('Error fetching seeds:', seedsResult.error)
-  }
-
-  const seedList = (seedsResult.data as Seed[] | null) ?? []
-  const profile = profileResult.data as Profile | null
+  const seedList: Seed[] = seedsData.map((row) => ({
+    ...row,
+    raw_ai_response: row.raw_ai_response ? JSON.parse(row.raw_ai_response) : null,
+  }))
+  const profile = profileResult[0] as Profile | undefined
   const lastFrostDate = profile?.last_frost_date ?? null
 
   return (

@@ -10,6 +10,7 @@ Seed Wizard is a Next.js 16 application that helps gardeners track seed inventor
 - Seed inventory management with manual entry and AI-powered URL extraction
 - Planting calendar calculations based on user's frost dates
 - Claude API integration for extracting seed data from product page URLs
+- Local SQLite database for zero-cost self-hosted deployment
 
 ## Commands
 
@@ -20,22 +21,26 @@ npm run build        # Production build
 npm run lint         # Run ESLint
 npx tsc --noEmit     # Type checking
 
-# Supabase (requires Docker for local)
-npx supabase start                                              # Start local Supabase
-npx supabase gen types typescript --local > src/types/database.ts  # Regenerate types
-npx supabase db push                                            # Run migrations
+# Docker Deployment
+docker compose up -d          # Start container (builds if needed)
+docker compose down           # Stop container
+docker compose logs -f        # View logs
+
+# Data Migration (from Supabase, if needed)
+SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_KEY=xxx npx tsx scripts/migrate-from-supabase.ts
 ```
 
 ## Architecture
 
 ### Data Flow
-1. **Seeds** are stored in Supabase with planting timing info (weeks before/after frost, cold-hardy flags)
+1. **Seeds** are stored in SQLite with planting timing info (weeks before/after frost, cold-hardy flags)
 2. **User profile** stores ZIP code → looked up in `zip_frost_data` table → frost dates
 3. **Calendar calculations** use frost dates + seed timing to compute planting windows (`src/lib/planting-window.ts`)
 
-### Supabase Client Pattern
-- **Server components/API routes**: Use `createClient()` from `src/lib/supabase/server.ts`
-- **Client components**: Use client from `src/lib/supabase/client.ts`
+### Database Layer (SQLite + Drizzle ORM)
+- **Schema**: Defined in `src/lib/db/schema.ts` using Drizzle ORM
+- **Client**: `src/lib/db/index.ts` - database connection and initialization
+- **Location**: SQLite file at `./data/seed-wizard.db` (or `DATABASE_PATH` env var)
 - Current dev mode uses hardcoded user ID `00000000-0000-0000-0000-000000000000` (auth not yet implemented)
 
 ### AI Extraction Flow
@@ -54,14 +59,14 @@ All in `src/app/api/`:
 - `profile/` - User profile management
 
 ### Key Types
-`src/types/database.ts` contains generated Supabase types plus convenience exports:
+`src/types/database.ts` contains type definitions:
 - `Seed`, `SeedInsert`, `SeedUpdate`
 - `Profile`, `ProfileInsert`, `ProfileUpdate`
 - `ZipFrostData`
 
 ## Database Schema
 
-Three main tables (see `supabase/migrations/`):
+Three main tables (see `src/lib/db/schema.ts`):
 - **profiles** - User settings (ZIP, zone, frost dates)
 - **seeds** - Seed inventory with planting timing fields
 - **zip_frost_data** - Static lookup table for ZIP → zone/frost dates
@@ -69,8 +74,28 @@ Three main tables (see `supabase/migrations/`):
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` and fill in:
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase connection (project: `fqaueibvxvqsdazisdna`)
+- `DATABASE_PATH` - Optional path to SQLite database (defaults to `./data/seed-wizard.db`)
 - `ANTHROPIC_API_KEY` - For AI seed extraction
+
+## Docker Deployment
+
+The app is designed for self-hosted deployment via Docker:
+
+```bash
+# Build and run
+docker compose up -d
+
+# Access at http://localhost:3000
+```
+
+The SQLite database is persisted in a Docker volume (`seed-wizard-data`).
+
+### Environment Variables for Docker
+Set `ANTHROPIC_API_KEY` in your environment or a `.env` file before running:
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+docker compose up -d
+```
 
 ## AI Extraction Details
 
@@ -98,4 +123,4 @@ When a ZIP code isn't in the database, `src/app/api/location/route.ts` estimates
 
 ## Current Development Status
 
-Auth is not yet implemented - the app uses a hardcoded user ID (`00000000-0000-0000-0000-000000000000`). See `@fix_plan.md` for the full roadmap including auth (Phase 6) and deployment (Phase 7).
+Auth is not yet implemented - the app uses a hardcoded user ID (`00000000-0000-0000-0000-000000000000`). This is a personal-use application designed for local deployment.

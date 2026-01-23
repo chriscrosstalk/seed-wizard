@@ -1,31 +1,37 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { MapPin, Sprout } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase } from '@/lib/db'
+import { profiles, seeds } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { CalendarList } from '@/components/calendar/calendar-list'
+import { parseLocalDate } from '@/lib/planting-window'
 import type { Profile, Seed } from '@/types/database'
 
-export default async function CalendarPage() {
-  const supabase = await createClient()
+// Initialize database
+initializeDatabase()
 
+export default async function CalendarPage() {
   // TODO: Get actual user ID from auth
   const userId = '00000000-0000-0000-0000-000000000000'
 
   // Get user's profile for frost dates
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  const profile = profileData as Profile | null
+  const [profileData] = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+  const profile = profileData as Profile | undefined
 
   // Get all seeds for calendar calculation
-  const { data: seedsData } = await supabase
-    .from('seeds')
-    .select('*')
-  const seeds = (seedsData as Seed[] | null) ?? []
+  const seedsData = await db.select().from(seeds)
+  const seedList: Seed[] = seedsData.map((row) => ({
+    ...row,
+    raw_ai_response: row.raw_ai_response ? JSON.parse(row.raw_ai_response) : null,
+  }))
 
   const hasLocation = profile?.last_frost_date && profile?.first_frost_date
-  const seedCount = seeds.length
+  const seedCount = seedList.length
 
   return (
     <div>
@@ -70,7 +76,7 @@ export default async function CalendarPage() {
               <MapPin className="h-4 w-4" />
               <span>
                 Zone {profile.hardiness_zone} | Last frost:{' '}
-                {new Date(profile.last_frost_date!).toLocaleDateString('en-US', {
+                {parseLocalDate(profile.last_frost_date!).toLocaleDateString('en-US', {
                   month: 'long',
                   day: 'numeric',
                 })}
@@ -78,7 +84,7 @@ export default async function CalendarPage() {
             </div>
           </div>
 
-          <CalendarList seeds={seeds} lastFrostDate={profile.last_frost_date!} />
+          <CalendarList seeds={seedList} lastFrostDate={profile.last_frost_date!} />
         </div>
       )}
     </div>

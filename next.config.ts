@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -8,6 +10,10 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+  },
+  // Ensure native modules work correctly
+  experimental: {
+    serverComponentsExternalPackages: ['better-sqlite3'],
   },
 };
 

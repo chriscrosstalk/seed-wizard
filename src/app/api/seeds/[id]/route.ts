@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase, getCurrentTimestamp } from '@/lib/db'
+import { seeds } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import type { Seed, SeedUpdate } from '@/types/database'
+import type { Seed } from '@/types/database'
+
+// Initialize database on first request
+initializeDatabase()
 
 // Convert HTTP URLs to HTTPS for security
 function normalizeImageUrl(url: string | null | undefined): string | null {
@@ -47,28 +52,29 @@ interface RouteParams {
 // GET /api/seeds/[id] - Get a single seed
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
-  const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('seeds')
-    .select('*')
-    .eq('id', id)
-    .single()
+  try {
+    const [data] = await db.select().from(seeds).where(eq(seeds.id, id))
 
-  if (error) {
-    if (error.code === 'PGRST116') {
+    if (!data) {
       return NextResponse.json({ error: 'Seed not found' }, { status: 404 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
 
-  return NextResponse.json(data as Seed)
+    const seed: Seed = {
+      ...data,
+      raw_ai_response: data.raw_ai_response ? JSON.parse(data.raw_ai_response) : null,
+    }
+
+    return NextResponse.json(seed)
+  } catch (error) {
+    console.error('Error fetching seed:', error)
+    return NextResponse.json({ error: 'Failed to fetch seed' }, { status: 500 })
+  }
 }
 
 // PUT /api/seeds/[id] - Update a seed
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
-  const supabase = await createClient()
 
   let body
   try {
@@ -87,8 +93,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 
   // Build update data, only including fields that were explicitly provided
-  // Clean empty strings to null for optional URL fields only if they were provided
-  const updateData: SeedUpdate = { ...result.data }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateData: Record<string, any> = {
+    ...result.data,
+    updated_at: getCurrentTimestamp(),
+  }
 
   // Only modify URL fields if they were explicitly included in the request
   if ('product_url' in body) {
@@ -98,36 +107,47 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     updateData.image_url = normalizeImageUrl(result.data.image_url)
   }
 
-  const { data, error } = await supabase
-    .from('seeds')
-    .update(updateData as never)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') {
+  try {
+    // Check if seed exists
+    const [existing] = await db.select().from(seeds).where(eq(seeds.id, id))
+    if (!existing) {
       return NextResponse.json({ error: 'Seed not found' }, { status: 404 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
 
-  return NextResponse.json(data as Seed)
+    // Perform update
+    await db.update(seeds).set(updateData).where(eq(seeds.id, id))
+
+    // Fetch updated seed
+    const [updated] = await db.select().from(seeds).where(eq(seeds.id, id))
+
+    const seed: Seed = {
+      ...updated,
+      raw_ai_response: updated.raw_ai_response ? JSON.parse(updated.raw_ai_response) : null,
+    }
+
+    return NextResponse.json(seed)
+  } catch (error) {
+    console.error('Error updating seed:', error)
+    return NextResponse.json({ error: 'Failed to update seed' }, { status: 500 })
+  }
 }
 
 // DELETE /api/seeds/[id] - Delete a seed
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
-  const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('seeds')
-    .delete()
-    .eq('id', id)
+  try {
+    // Check if seed exists
+    const [existing] = await db.select().from(seeds).where(eq(seeds.id, id))
+    if (!existing) {
+      return NextResponse.json({ error: 'Seed not found' }, { status: 404 })
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    await db.delete(seeds).where(eq(seeds.id, id))
+
+    return new NextResponse(null, { status: 204 })
+  } catch (error) {
+    console.error('Error deleting seed:', error)
+    return NextResponse.json({ error: 'Failed to delete seed' }, { status: 500 })
   }
-
-  return new NextResponse(null, { status: 204 })
 }

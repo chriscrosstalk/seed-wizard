@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase, generateId, getCurrentTimestamp } from '@/lib/db'
+import { seeds } from '@/lib/db/schema'
+import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Seed, SeedInsert } from '@/types/database'
 import { getDefaultTiming } from '@/lib/plant-defaults'
+
+// Initialize database on first request
+initializeDatabase()
 
 // Convert HTTP URLs to HTTPS for security
 function normalizeImageUrl(url: string | null | undefined): string | null {
@@ -41,24 +46,24 @@ const seedSchema = z.object({
 
 // GET /api/seeds - List all seeds
 export async function GET() {
-  const supabase = await createClient()
+  try {
+    const data = await db.select().from(seeds).orderBy(desc(seeds.created_at))
 
-  const { data, error } = await supabase
-    .from('seeds')
-    .select('*')
-    .order('created_at', { ascending: false })
+    // Transform to match expected Seed type (booleans from integers, parse JSON)
+    const seedList: Seed[] = data.map((row) => ({
+      ...row,
+      raw_ai_response: row.raw_ai_response ? JSON.parse(row.raw_ai_response) : null,
+    }))
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(seedList)
+  } catch (error) {
+    console.error('Error fetching seeds:', error)
+    return NextResponse.json({ error: 'Failed to fetch seeds' }, { status: 500 })
   }
-
-  return NextResponse.json(data as Seed[])
 }
 
 // POST /api/seeds - Create a new seed
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
   let body
   try {
     body = await request.json()
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Clean empty strings to null for optional URL fields
+  // Build seed data
   const seedData: SeedInsert = {
     ...result.data,
     product_url: result.data.product_url || null,
@@ -92,7 +97,6 @@ export async function POST(request: NextRequest) {
   if (!hasTiming && seedData.common_name) {
     const defaults = getDefaultTiming(seedData.common_name)
     if (defaults) {
-      // Only fill in if not already set
       seedData.planting_method = seedData.planting_method ?? defaults.planting_method ?? null
       seedData.cold_hardy = seedData.cold_hardy ?? defaults.cold_hardy ?? false
       seedData.weeks_before_last_frost = seedData.weeks_before_last_frost ?? defaults.weeks_before_last_frost ?? null
@@ -101,15 +105,58 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data, error } = await supabase
-    .from('seeds')
-    .insert(seedData as never)
-    .select()
-    .single()
+  try {
+    const id = generateId()
+    const now = getCurrentTimestamp()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    await db.insert(seeds).values({
+      id,
+      user_id: seedData.user_id,
+      variety_name: seedData.variety_name,
+      common_name: seedData.common_name ?? null,
+      seed_company: seedData.seed_company ?? null,
+      product_url: seedData.product_url ?? null,
+      image_url: seedData.image_url ?? null,
+      purchase_year: seedData.purchase_year ?? null,
+      quantity_packets: seedData.quantity_packets ?? 1,
+      notes: seedData.notes ?? null,
+      days_to_maturity_min: seedData.days_to_maturity_min ?? null,
+      days_to_maturity_max: seedData.days_to_maturity_max ?? null,
+      planting_depth_inches: seedData.planting_depth_inches ?? null,
+      spacing_inches: seedData.spacing_inches ?? null,
+      row_spacing_inches: seedData.row_spacing_inches ?? null,
+      sun_requirement: seedData.sun_requirement ?? null,
+      water_requirement: seedData.water_requirement ?? null,
+      planting_method: seedData.planting_method ?? null,
+      weeks_before_last_frost: seedData.weeks_before_last_frost ?? null,
+      weeks_after_last_frost: seedData.weeks_after_last_frost ?? null,
+      cold_hardy: seedData.cold_hardy ?? false,
+      weeks_before_last_frost_outdoor: seedData.weeks_before_last_frost_outdoor ?? null,
+      succession_planting: seedData.succession_planting ?? false,
+      succession_interval_days: seedData.succession_interval_days ?? null,
+      fall_planting: seedData.fall_planting ?? false,
+      cold_stratification_required: seedData.cold_stratification_required ?? false,
+      cold_stratification_weeks: seedData.cold_stratification_weeks ?? null,
+      is_favorite: false,
+      is_planted: false,
+      ai_extracted: false,
+      ai_extraction_date: null,
+      raw_ai_response: null,
+      created_at: now,
+      updated_at: now,
+    })
+
+    // Fetch the created seed
+    const [created] = await db.select().from(seeds).where(eq(seeds.id, id))
+
+    const createdSeed: Seed = {
+      ...created,
+      raw_ai_response: created.raw_ai_response ? JSON.parse(created.raw_ai_response) : null,
+    }
+
+    return NextResponse.json(createdSeed, { status: 201 })
+  } catch (error) {
+    console.error('Error creating seed:', error)
+    return NextResponse.json({ error: 'Failed to create seed' }, { status: 500 })
   }
-
-  return NextResponse.json(data as Seed, { status: 201 })
 }

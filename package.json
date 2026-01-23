@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.90.1",
+    "better-sqlite3": "^12.6.2",
     "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
@@ -20,10 +20,13 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.91.1",
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "supabase": "^2.72.4",

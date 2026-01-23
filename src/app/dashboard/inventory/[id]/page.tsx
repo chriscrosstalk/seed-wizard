@@ -1,9 +1,14 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase } from '@/lib/db'
+import { seeds } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { SeedForm } from '@/components/seeds/seed-form'
 import type { Seed } from '@/types/database'
+
+// Initialize database
+initializeDatabase()
 
 interface EditSeedPageProps {
   params: Promise<{ id: string }>
@@ -11,19 +16,17 @@ interface EditSeedPageProps {
 
 export default async function EditSeedPage({ params }: EditSeedPageProps) {
   const { id } = await params
-  const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('seeds')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [data] = await db.select().from(seeds).where(eq(seeds.id, id))
 
-  if (error || !data) {
+  if (!data) {
     notFound()
   }
 
-  const seed = data as Seed
+  const seed: Seed = {
+    ...data,
+    raw_ai_response: data.raw_ai_response ? JSON.parse(data.raw_ai_response) : null,
+  }
 
   return (
     <div>

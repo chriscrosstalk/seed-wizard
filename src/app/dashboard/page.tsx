@@ -1,20 +1,31 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { Package, Calendar, Plus } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { db, initializeDatabase } from '@/lib/db'
+import { profiles, seeds } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { PlantableNowWidget } from '@/components/dashboard/plantable-now-widget'
 import type { Profile, Seed } from '@/types/database'
 
+// Initialize database
+initializeDatabase()
+
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  // TODO: Get actual user ID from auth
+  const userId = '00000000-0000-0000-0000-000000000000'
 
   // Fetch profile and seeds for the widget
-  const { data: profileData } = await supabase.from('profiles').select('*').single()
-  const { data: seedsData } = await supabase.from('seeds').select('*')
+  const [profileData] = await db.select().from(profiles).where(eq(profiles.id, userId))
+  const seedsData = await db.select().from(seeds)
 
-  const profile = profileData as Profile | null
-  const seeds = (seedsData as Seed[] | null) ?? []
+  const profile = profileData as Profile | undefined
+  const seedList: Seed[] = seedsData.map((row) => ({
+    ...row,
+    raw_ai_response: row.raw_ai_response ? JSON.parse(row.raw_ai_response) : null,
+  }))
 
-  const showWidget = profile?.last_frost_date && seeds.length > 0
+  const showWidget = profile?.last_frost_date && seedList.length > 0
 
   return (
     <div>
@@ -83,7 +94,7 @@ export default async function DashboardPage() {
       {/* Plantable Now Widget */}
       {showWidget && profile && (
         <div className="mt-8">
-          <PlantableNowWidget seeds={seeds} profile={profile} />
+          <PlantableNowWidget seeds={seedList} profile={profile} />
         </div>
       )}
     </div>
