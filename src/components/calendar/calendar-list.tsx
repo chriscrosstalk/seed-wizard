@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Calendar, Sprout, Home, Sun } from 'lucide-react'
+import { Calendar, Sprout, Home, Sun, List, CalendarDays } from 'lucide-react'
 import { findPlantDefault } from '@/lib/plant-defaults'
 import { parseLocalDate, getSeedsPlantableNow } from '@/lib/planting-window'
+import { CalendarGrid } from './calendar-grid'
 import type { Seed } from '@/types/database'
 
 interface CalendarListProps {
@@ -12,12 +13,14 @@ interface CalendarListProps {
 }
 
 type CategoryFilter = 'vegetable' | 'flower' | 'herb'
+type ViewMode = 'list' | 'calendar'
 
 const FILTER_STORAGE_KEY = 'seed-wizard-category-filters'
 const HIDE_PLANTED_KEY = 'seed-wizard-hide-planted'
 const PLANTABLE_NOW_KEY = 'seed-wizard-calendar-plantable-now'
 const SHOW_INDOOR_KEY = 'seed-wizard-plantable-indoor'
 const SHOW_OUTDOOR_KEY = 'seed-wizard-plantable-outdoor'
+const VIEW_MODE_KEY = 'seed-wizard-calendar-view-mode'
 
 const defaultFilters: Record<CategoryFilter, boolean> = {
   vegetable: true,
@@ -44,6 +47,13 @@ function getStoredBoolean(key: string, defaultValue: boolean = false): boolean {
   const stored = localStorage.getItem(key)
   if (stored === null) return defaultValue
   return stored === 'true'
+}
+
+function getStoredViewMode(): ViewMode {
+  if (typeof window === 'undefined') return 'list'
+  const stored = localStorage.getItem(VIEW_MODE_KEY)
+  if (stored === 'calendar') return 'calendar'
+  return 'list'
 }
 
 const categoryStyles: Record<CategoryFilter, { border: string; bg: string; text: string }> = {
@@ -86,6 +96,7 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
   const [plantableNow, setPlantableNow] = useState(false)
   const [showIndoor, setShowIndoor] = useState(true)
   const [showOutdoor, setShowOutdoor] = useState(true)
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -94,6 +105,7 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
     setPlantableNow(getStoredBoolean(PLANTABLE_NOW_KEY))
     setShowIndoor(getStoredBoolean(SHOW_INDOOR_KEY, true))
     setShowOutdoor(getStoredBoolean(SHOW_OUTDOOR_KEY, true))
+    setViewMode(getStoredViewMode())
     setMounted(true)
   }, [])
 
@@ -135,6 +147,11 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
       localStorage.setItem(SHOW_OUTDOOR_KEY, String(newValue))
       return newValue
     })
+  }
+
+  const switchViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_MODE_KEY, mode)
   }
 
   // Calculate planting info, add category, filter, and sort by date
@@ -183,10 +200,38 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
     <div className="rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="flex items-center gap-2 font-medium text-gray-900">
-            <Calendar className="h-5 w-5 text-green-600" />
-            Upcoming Planting Events
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="flex items-center gap-2 font-medium text-gray-900">
+              <Calendar className="h-5 w-5 text-green-600" />
+              Planting Calendar
+            </h2>
+
+            {/* View Toggle */}
+            <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+              <button
+                onClick={() => switchViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <List className="h-4 w-4" />
+                List
+              </button>
+              <button
+                onClick={() => switchViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <CalendarDays className="h-4 w-4" />
+                Calendar
+              </button>
+            </div>
+          </div>
 
           {/* Category Filters */}
           <div className="flex flex-wrap items-center gap-3">
@@ -227,85 +272,100 @@ export function CalendarList({ seeds, lastFrostDate }: CalendarListProps) {
               />
               <span className="text-sm font-medium text-gray-700">Hide planted</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer rounded-full bg-green-50 px-3 py-1 border border-green-200">
-              <input
-                type="checkbox"
-                checked={plantableNow}
-                onChange={togglePlantableNow}
-                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <Sprout className="h-3 w-3 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Plantable now</span>
-            </label>
-            {plantableNow && (
+            {/* Only show "Plantable now" filter in list view */}
+            {viewMode === 'list' && (
               <>
-                <label className="flex items-center gap-2 cursor-pointer rounded-full bg-purple-50 px-3 py-1 border border-purple-200">
+                <label className="flex items-center gap-2 cursor-pointer rounded-full bg-green-50 px-3 py-1 border border-green-200">
                   <input
                     type="checkbox"
-                    checked={showIndoor}
-                    onChange={toggleShowIndoor}
-                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    checked={plantableNow}
+                    onChange={togglePlantableNow}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                   />
-                  <Home className="h-3 w-3 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-800">Indoor</span>
+                  <Sprout className="h-3 w-3 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Plantable now</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer rounded-full bg-orange-50 px-3 py-1 border border-orange-200">
-                  <input
-                    type="checkbox"
-                    checked={showOutdoor}
-                    onChange={toggleShowOutdoor}
-                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                  />
-                  <Sun className="h-3 w-3 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-800">Outdoor</span>
-                </label>
+                {plantableNow && (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer rounded-full bg-purple-50 px-3 py-1 border border-purple-200">
+                      <input
+                        type="checkbox"
+                        checked={showIndoor}
+                        onChange={toggleShowIndoor}
+                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <Home className="h-3 w-3 text-purple-600" />
+                      <span className="text-sm font-medium text-purple-800">Indoor</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer rounded-full bg-orange-50 px-3 py-1 border border-orange-200">
+                      <input
+                        type="checkbox"
+                        checked={showOutdoor}
+                        onChange={toggleShowOutdoor}
+                        className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <Sun className="h-3 w-3 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-800">Outdoor</span>
+                    </label>
+                  </>
+                )}
               </>
             )}
           </div>
         </div>
       </div>
 
-      <div className="divide-y divide-gray-100">
-        {sortedSeeds.map(({ seed, planting, category }) => {
-          const styles = categoryStyles[category]
-          return (
-            <div
-              key={seed.id}
-              className={`flex items-center justify-between px-6 py-4 border-l-4 ${styles.border} ${styles.bg}`}
-            >
-              <div>
-                <p className="font-medium text-gray-900">{seed.variety_name}</p>
-                <p className="text-sm text-gray-500">
-                  {seed.common_name && `${seed.common_name} • `}
-                  {planting.eventType}
-                </p>
+      {/* List View */}
+      {viewMode === 'list' && (
+        <div className="divide-y divide-gray-100">
+          {sortedSeeds.map(({ seed, planting, category }) => {
+            const styles = categoryStyles[category]
+            return (
+              <div
+                key={seed.id}
+                className={`flex items-center justify-between px-6 py-4 border-l-4 ${styles.border} ${styles.bg}`}
+              >
+                <div>
+                  <p className="font-medium text-gray-900">{seed.variety_name}</p>
+                  <p className="text-sm text-gray-500">
+                    {seed.common_name && `${seed.common_name} • `}
+                    {planting.eventType}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-medium ${styles.text}`}>
+                    {planting.date.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {seed.days_to_maturity_min && `${seed.days_to_maturity_min} days to harvest`}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className={`font-medium ${styles.text}`}>
-                  {planting.date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {seed.days_to_maturity_min && `${seed.days_to_maturity_min} days to harvest`}
-                </p>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
 
-        {sortedSeeds.length === 0 && (
-          <div className="px-6 py-8 text-center text-gray-500">
-            <p>No planting dates available.</p>
-            <p className="mt-1 text-sm">
-              {seeds.length > 0
-                ? 'Try selecting different categories above.'
-                : 'Add planting method and timing info to your seeds to see calendar events.'}
-            </p>
-          </div>
-        )}
-      </div>
+          {sortedSeeds.length === 0 && (
+            <div className="px-6 py-8 text-center text-gray-500">
+              <p>No planting dates available.</p>
+              <p className="mt-1 text-sm">
+                {seeds.length > 0
+                  ? 'Try selecting different categories above.'
+                  : 'Add planting method and timing info to your seeds to see calendar events.'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <div className="p-6">
+          <CalendarGrid sortedSeeds={sortedSeeds} />
+        </div>
+      )}
     </div>
   )
 }
