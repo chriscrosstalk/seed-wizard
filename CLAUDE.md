@@ -121,6 +121,30 @@ Both the dashboard widget and calendar page should use these shared functions fo
 ### Estimated Frost Dates
 When a ZIP code isn't in the database, `src/app/api/location/route.ts` estimates frost dates based on ZIP prefix regions. The `formatFrostDate()` helper ensures dates use the current/next year dynamically (not a hardcoded year).
 
+## UI Components
+
+### Seed Cards (`src/components/seeds/seed-card.tsx`)
+- Year badges are color-coded by seed age to indicate freshness:
+  - **Green** (emerald) - Current year
+  - **Yellow** (amber) - 1 year old
+  - **Orange** - 2 years old
+  - **Red** - 3+ years old
+- Category badges use consistent colors: sky (vegetable), rose (flower), herb (green)
+
+### Planting Calendar (`src/components/calendar/`)
+- Two view modes: list view and calendar grid view
+- View preference is persisted to localStorage (`seed-wizard-calendar-view-mode`)
+- `calendar-list.tsx` - Main component with filtering and view toggle
+- `calendar-grid.tsx` - Monthly grid visualization of planting events
+
+### User Preferences
+Several UI preferences are stored in localStorage:
+- `seed-wizard-category-filters` - Category filter state
+- `seed-wizard-hide-planted` - Hide planted seeds toggle
+- `seed-wizard-calendar-plantable-now` - "Plantable now" filter
+- `seed-wizard-plantable-indoor` / `seed-wizard-plantable-outdoor` - Indoor/outdoor toggles
+- `seed-wizard-calendar-view-mode` - List vs calendar view
+
 ## Current Development Status
 
 Auth is not yet implemented - the app uses a hardcoded user ID (`00000000-0000-0000-0000-000000000000`). This is a personal-use application designed for local deployment.
