@@ -47,6 +47,38 @@ const categoryStyles: Record<CategoryFilter, {
   },
 }
 
+// Get year badge styles based on seed age
+function getYearBadgeStyles(purchaseYear: number): { bg: string; text: string } {
+  const currentYear = new Date().getFullYear()
+  const age = currentYear - purchaseYear
+
+  if (age <= 0) {
+    // Current year - green
+    return {
+      bg: 'bg-emerald-100',
+      text: 'text-emerald-700',
+    }
+  } else if (age === 1) {
+    // 1 year old - yellow
+    return {
+      bg: 'bg-amber-100',
+      text: 'text-amber-700',
+    }
+  } else if (age === 2) {
+    // 2 years old - orange
+    return {
+      bg: 'bg-orange-100',
+      text: 'text-orange-700',
+    }
+  } else {
+    // 3+ years old - red
+    return {
+      bg: 'bg-red-100',
+      text: 'text-red-700',
+    }
+  }
+}
+
 // Decorative botanical corner SVG
 function BotanicalCorner({ className }: { className?: string }) {
   return (
@@ -286,11 +318,14 @@ export function SeedCard({
                 {seed.seed_company}
               </span>
             )}
-            {seed.purchase_year && (
-              <span className="inline-flex items-center rounded-md bg-[var(--color-terracotta-light)]/40 px-2 py-1 text-xs font-medium text-[var(--color-terracotta-dark)]">
-                {seed.purchase_year}
-              </span>
-            )}
+            {seed.purchase_year && (() => {
+              const yearStyles = getYearBadgeStyles(seed.purchase_year)
+              return (
+                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${yearStyles.bg} ${yearStyles.text}`}>
+                  {seed.purchase_year}
+                </span>
+              )
+            })()}
             {seed.quantity_packets > 1 && (
               <span className="inline-flex items-center rounded-md bg-[var(--color-sage-light)]/50 px-2 py-1 text-xs font-medium text-[var(--color-sage-dark)]">
                 {seed.quantity_packets} packets
